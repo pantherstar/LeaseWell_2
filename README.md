@@ -1,4 +1,4 @@
-# PropFlow - Property Management Portal
+# LeaseWell - Property Management Portal
 
 A modern, full-featured property management web application built with React, Vite, and Tailwind CSS.
 
