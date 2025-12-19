@@ -364,7 +364,7 @@ const LoginPage = ({ onLogin }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">PropFlow</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">LeaseWell</h1>
           <p className="text-slate-400 mt-2">Property Management Simplified</p>
         </div>
 
@@ -419,7 +419,7 @@ const LoginPage = ({ onLogin }) => {
             <p className="text-slate-400 text-sm">Don't have an account? <a href="#" className="text-emerald-400 hover:text-emerald-300 font-medium">Create one</a></p>
           </div>
         </div>
-        <p className="text-center text-slate-500 text-sm mt-6">© 2024 PropFlow. All rights reserved.</p>
+        <p className="text-center text-slate-500 text-sm mt-6">© 2024 LeaseWell. All rights reserved.</p>
       </div>
     </div>
   );
@@ -790,7 +790,7 @@ const Dashboard = ({ userType, onLogout }) => {
         <div className="p-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
-            {sidebarOpen && <span className="text-white font-bold text-lg">PropFlow</span>}
+            {sidebarOpen && <span className="text-white font-bold text-lg">LeaseWell</span>}
           </div>
         </div>
 

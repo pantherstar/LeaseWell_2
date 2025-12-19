@@ -1,5 +1,5 @@
 {
-  "name": "propflow-property-management",
+  "name": "leasewell-property-management",
   "version": "1.0.0",
   "description": "Property Management Portal with authentication, lease tracking, document management, maintenance requests, and rent collection",
   "private": true,
