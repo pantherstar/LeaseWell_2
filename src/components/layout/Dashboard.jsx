@@ -35,6 +35,25 @@ const Dashboard = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Show loading state while data is being fetched
+  const isLoading = leasesLoading || maintenanceLoading || documentsLoading || paymentsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
+            <Building2 className="w-8 h-8 text-white animate-pulse" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">Loading LeaseWell...</h2>
+          <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const menuItems = userType === 'landlord' ? [
     { id: 'overview', label: 'Overview', icon: Building2 },
     { id: 'leases', label: 'Leases', icon: FileText },

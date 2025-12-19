@@ -66,25 +66,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signIn = async (email, password) => {
+  const signIn = async ({ email, password }) => {
     try {
-      const { user, session } = await authService.signIn({ email, password });
+      const { user, session, error } = await authService.signIn({ email, password });
+
+      if (error) {
+        return { user: null, error: error.message || 'Login failed' };
+      }
+
       setSession(session);
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
       setUserType(currentUser?.profile?.role);
       return { user: currentUser, error: null };
     } catch (error) {
-      return { user: null, error };
+      return { user: null, error: error.message || 'Login failed' };
     }
   };
 
-  const signUp = async (email, password, fullName, role) => {
+  const signUp = async ({ email, password, fullName, role }) => {
     try {
-      const { user } = await authService.signUp({ email, password, fullName, role });
-      return { user, error: null };
+      const { user, error } = await authService.signUp({ email, password, fullName, role });
+
+      if (error) {
+        return { user: null, error: error.message || 'Signup failed' };
+      }
+
+      // After signup, automatically sign in
+      const signInResult = await signIn({ email, password });
+      return signInResult;
     } catch (error) {
-      return { user: null, error };
+      return { user: null, error: error.message || 'Signup failed' };
     }
   };
 

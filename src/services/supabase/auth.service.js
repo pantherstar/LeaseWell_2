@@ -18,21 +18,14 @@ export const authService = {
       },
     });
 
-    if (error) throw error;
-
-    // Create profile after signup
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: data.user.email,
-        full_name: fullName,
-        role: role,
-      });
-
-      if (profileError) throw profileError;
+    if (error) {
+      return { user: null, error };
     }
 
-    return data;
+    // The database trigger 'on_auth_user_created' will automatically create the profile
+    // No need to manually insert into profiles table
+
+    return { user: data.user, session: data.session, error: null };
   },
 
   // Sign in
@@ -46,8 +39,11 @@ export const authService = {
       password,
     });
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      return { user: null, session: null, error };
+    }
+
+    return { user: data.user, session: data.session, error: null };
   },
 
   // Sign out
