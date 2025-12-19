@@ -170,7 +170,7 @@ CREATE TABLE tenant_screenings (
   employment_verified BOOLEAN DEFAULT FALSE,
   background_check_status TEXT CHECK (background_check_status IN ('pending', 'approved', 'rejected')),
   background_check_report_url TEXT,
-  references JSONB DEFAULT '[]'::jsonb,
+  tenant_references JSONB DEFAULT '[]'::jsonb,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
