@@ -1,24 +1,64 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Key, Mail, Home } from 'lucide-react';
+import { Building2, Key, Mail, Home, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { mockLogin } = useAuth();
+  const { signIn, signUp, mockLogin } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [userType, setUserType] = useState('landlord');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    setTimeout(() => {
-      mockLogin(userType);
+
+    try {
+      if (isSignUp) {
+        // Signup mode
+        if (password !== confirmPassword) {
+          setError('Passwords do not match');
+          setLoading(false);
+          return;
+        }
+
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters');
+          setLoading(false);
+          return;
+        }
+
+        const result = await signUp({ email, password, fullName, role: userType });
+
+        if (result.error) {
+          setError(result.error);
+        } else {
+          // Successfully signed up, navigate to dashboard
+          navigate('/dashboard');
+        }
+      } else {
+        // Login mode
+        const result = await signIn({ email, password });
+
+        if (result.error) {
+          setError(result.error);
+        } else {
+          // Successfully logged in, navigate to dashboard
+          navigate('/dashboard');
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred');
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 1500);
+    }
   };
 
   return (
@@ -53,6 +93,23 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
               <div className="relative">
@@ -71,22 +128,53 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-slate-400 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-600 text-emerald-500 bg-slate-800" />Remember me
-              </label>
-              <a href="#" className="text-emerald-400 hover:text-emerald-300">Forgot password?</a>
-            </div>
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
+                <div className="relative">
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                </div>
+              </div>
+            )}
+
+            {!isSignUp && (
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 text-slate-400 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded border-slate-600 text-emerald-500 bg-slate-800" />Remember me
+                </label>
+                <a href="#" className="text-emerald-400 hover:text-emerald-300">Forgot password?</a>
+              </div>
+            )}
 
             <button type="submit" disabled={loading}
               className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/25 disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Signing in...</>)
-                : (<>Sign in as {userType === 'landlord' ? 'Landlord' : 'Tenant'}</>)}
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {isSignUp ? 'Creating account...' : 'Signing in...'}
+                </>
+              ) : (
+                <>{isSignUp ? `Create ${userType === 'landlord' ? 'Landlord' : 'Tenant'} Account` : `Sign in as ${userType === 'landlord' ? 'Landlord' : 'Tenant'}`}</>
+              )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-400 text-sm">Don't have an account? <a href="#" className="text-emerald-400 hover:text-emerald-300 font-medium">Create one</a></p>
+            <p className="text-slate-400 text-sm">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError('');
+                }}
+                className="text-emerald-400 hover:text-emerald-300 font-medium"
+              >
+                {isSignUp ? 'Sign in' : 'Create one'}
+              </button>
+            </p>
           </div>
         </div>
         <p className="text-center text-slate-500 text-sm mt-6">© 2024 LeaseWell. All rights reserved.</p>
