@@ -78,16 +78,19 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
+        <div className="absolute -top-24 -right-20 w-96 h-96 bg-emerald-500/20 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 -left-24 w-96 h-96 bg-amber-400/15 blur-[120px] rounded-full" />
+        <div className="text-center relative z-10">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
             <Building2 className="w-8 h-8 text-white animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Loading LeaseWell...</h2>
-          <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+          <h2 className="text-xl font-semibold text-white mb-2">Loading LeaseWell...</h2>
+          <div className="w-48 h-1 bg-emerald-900/40 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-pulse" style={{ width: '60%' }}></div>
           </div>
-          <p className="text-slate-500 text-sm mt-4">If this takes too long, check your browser console for errors</p>
+          <p className="text-emerald-100/60 text-sm mt-4">If this takes too long, check your browser console for errors</p>
         </div>
       </div>
     );
@@ -697,14 +700,14 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1513]">
+    <div className="min-h-screen bg-slate-50">
       {notification && (
         <div className="fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 bg-emerald-600 text-white animate-slide-in">
           <CheckCircle className="w-5 h-5" />{notification}
         </div>
       )}
 
-      <aside className={`fixed left-0 top-0 h-full bg-[#0f1d1a] border-r border-emerald-500/10 transition-all duration-300 z-40 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
+      <aside className={`fixed left-0 top-0 h-full bg-slate-900 transition-all duration-300 z-40 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
         <div className="p-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
@@ -729,20 +732,20 @@ const Dashboard = () => {
       </aside>
 
       <main className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        <header className="bg-white/5 backdrop-blur border-b border-emerald-500/10 px-8 py-4 sticky top-0 z-30">
+        <header className="bg-white border-b border-slate-100 px-8 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg"><Menu className="w-5 h-5 text-emerald-100" /></button>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg"><Menu className="w-5 h-5 text-slate-600" /></button>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-100/60" />
-                <input type="text" placeholder="Search..." className="pl-10 pr-4 py-2.5 bg-white/10 border border-white/10 rounded-xl w-64 text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input type="text" placeholder="Search..." className="pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl w-64 focus:ring-2 focus:ring-emerald-500" />
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-white/10 rounded-lg relative"><Bell className="w-5 h-5 text-emerald-100" /><span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" /></button>
-              <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+              <button className="p-2 hover:bg-slate-100 rounded-lg relative"><Bell className="w-5 h-5 text-slate-600" /><span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" /></button>
+              <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">{userType === 'landlord' ? 'L' : 'T'}</div>
-                <div><p className="font-medium text-white text-sm">{userType === 'landlord' ? 'Property Manager' : 'John Smith'}</p><p className="text-xs text-emerald-100/60 capitalize">{userType}</p></div>
+                <div><p className="font-medium text-slate-800 text-sm">{userType === 'landlord' ? 'Property Manager' : 'John Smith'}</p><p className="text-xs text-slate-500 capitalize">{userType}</p></div>
               </div>
             </div>
           </div>
