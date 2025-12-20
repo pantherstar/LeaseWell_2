@@ -10,6 +10,7 @@ import MaintenanceModal from '../maintenance/MaintenanceModal';
 import DocumentModal from '../documents/DocumentModal';
 import LeaseModal from '../leases/LeaseModal';
 import OfflinePaymentModal from '../payments/OfflinePaymentModal';
+import logoMark from '../../assets/leasewell-mark.png';
 import { useLeases } from '../../hooks/useLeases';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import { useDocuments } from '../../hooks/useDocuments';
@@ -715,7 +716,9 @@ const Dashboard = () => {
           onClick={() => setActiveTab('overview')}
           className="flex items-center gap-3"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
+          <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-400/30 rounded-xl flex items-center justify-center">
+            <img src={logoMark} alt="LeaseWell" className="w-6 h-6 object-contain" />
+          </div>
           {sidebarOpen && <span className="text-white font-bold text-lg">LeaseWell</span>}
         </button>
       </div>

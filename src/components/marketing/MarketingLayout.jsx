@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import logoFull from '../../assets/leasewell-logo.png';
 
 const MarketingLayout = ({ children }) => {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -38,13 +38,10 @@ const MarketingLayout = ({ children }) => {
 
       <header className="relative z-10 px-6 md:px-12 py-6 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
-            <Building2 className="w-6 h-6 text-white" />
+          <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 px-3 py-2 shadow-lg">
+            <img src={logoFull} alt="LeaseWell" className="h-8 w-auto" />
           </div>
-          <div>
-            <p className="text-lg font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</p>
-            <p className="text-xs text-emerald-200/80">Modern tools for modern rentals.</p>
-          </div>
+          <p className="text-xs text-emerald-200/80 hidden sm:block">Modern tools for modern rentals.</p>
         </Link>
         <nav className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">
           <Link to="/" className="hover:text-white">Home</Link>

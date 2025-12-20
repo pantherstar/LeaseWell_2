@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Key, Mail, Home, User } from 'lucide-react';
+import { Key, Mail, Home, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import logoMark from '../../assets/leasewell-mark.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -136,8 +137,8 @@ const LoginPage = () => {
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
-            <Building2 className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/10 border border-emerald-400/30 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
+            <img src={logoMark} alt="LeaseWell" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</h1>
           <p className="text-emerald-100/70 mt-2">Property Management Simplified</p>
