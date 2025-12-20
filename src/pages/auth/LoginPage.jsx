@@ -19,8 +19,8 @@ const LoginPage = () => {
   const [rateLimitMessage, setRateLimitMessage] = useState('');
 
   const attemptKey = 'leasewell_login_attempts';
-  const attemptWindowMs = 10 * 60 * 1000;
-  const attemptLimit = 5;
+  const attemptWindowMs = 3 * 60 * 1000;
+  const attemptLimit = 10;
 
   const pruneAttempts = () => {
     const now = Date.now();
