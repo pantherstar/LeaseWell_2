@@ -16,7 +16,7 @@ const ContactPage = () => {
         </div>
 
         <form
-          className="mt-12 max-w-2xl bg-white/5 border border-white/10 rounded-3xl p-8 space-y-5"
+          className="mt-12 max-w-2xl mx-auto bg-white/5 border border-white/10 rounded-3xl p-8 space-y-5"
           action="mailto:leasewell@protonmail.com"
           method="POST"
           encType="text/plain"
