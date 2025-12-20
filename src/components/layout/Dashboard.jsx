@@ -753,7 +753,6 @@ const Dashboard = () => {
                   className="p-2 hover:bg-slate-100 rounded-lg relative"
                 >
                   <Bell className="w-5 h-5 text-slate-600" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </button>
                 {notificationsOpen && (
                   <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-100 rounded-xl shadow-lg p-4 text-sm text-slate-600">
