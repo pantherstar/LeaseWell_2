@@ -24,6 +24,7 @@ const plans = [
     accent: 'border-emerald-500/40',
     button: 'Upgrade',
     features: [
+      'Everything in Starter',
       'Stripe Connect payouts',
       'ACH + card payments',
       'Offline payment recording',
