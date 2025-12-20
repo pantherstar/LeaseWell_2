@@ -37,7 +37,7 @@ const MarketingLayout = ({ children }) => {
       />
 
       <header className="relative z-10 px-6 md:px-12 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
             <Building2 className="w-6 h-6 text-white" />
           </div>
@@ -45,7 +45,7 @@ const MarketingLayout = ({ children }) => {
             <p className="text-lg font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</p>
             <p className="text-xs text-emerald-200/80">Modern tools for modern rentals.</p>
           </div>
-        </div>
+        </Link>
         <nav className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">
           <Link to="/" className="hover:text-white">Home</Link>
           <Link to="/features" className="hover:text-white">Features</Link>

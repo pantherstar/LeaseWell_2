@@ -34,6 +34,7 @@ const Dashboard = () => {
   const [invitePropertyId, setInvitePropertyId] = useState('');
   const [leaseModalOpen, setLeaseModalOpen] = useState(false);
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
   // Use custom hooks for data fetching
@@ -709,11 +710,15 @@ const Dashboard = () => {
 
       <aside className={`fixed left-0 top-0 h-full bg-slate-900 transition-all duration-300 z-40 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
         <div className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
-            {sidebarOpen && <span className="text-white font-bold text-lg">LeaseWell</span>}
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className="flex items-center gap-3"
+        >
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><Building2 className="w-5 h-5 text-white" /></div>
+          {sidebarOpen && <span className="text-white font-bold text-lg">LeaseWell</span>}
+        </button>
+      </div>
 
         <nav className="px-4 mt-4">
           {menuItems.map(item => (
@@ -742,7 +747,21 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-slate-100 rounded-lg relative"><Bell className="w-5 h-5 text-slate-600" /><span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" /></button>
+              <div className="relative">
+                <button
+                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  className="p-2 hover:bg-slate-100 rounded-lg relative"
+                >
+                  <Bell className="w-5 h-5 text-slate-600" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                </button>
+                {notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-100 rounded-xl shadow-lg p-4 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-800 mb-2">Alerts</p>
+                    <p>No new alerts yet.</p>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">{userType === 'landlord' ? 'L' : 'T'}</div>
                 <div><p className="font-medium text-slate-800 text-sm">{userType === 'landlord' ? 'Property Manager' : 'John Smith'}</p><p className="text-xs text-slate-500 capitalize">{userType}</p></div>
