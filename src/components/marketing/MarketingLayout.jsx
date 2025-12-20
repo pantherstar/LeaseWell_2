@@ -51,6 +51,7 @@ const MarketingLayout = ({ children }) => {
           <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/workflow" className="hover:text-white">Workflow</Link>
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
+          <Link to="/contact" className="hover:text-white">Contact</Link>
           <Link to="/login" className="px-4 py-2 rounded-full bg-white text-slate-900 font-semibold hover:bg-emerald-100">Sign In</Link>
         </nav>
       </header>
@@ -64,6 +65,7 @@ const MarketingLayout = ({ children }) => {
           <Link to="/" className="hover:text-white">Home</Link>
           <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
+          <Link to="/contact" className="hover:text-white">Contact</Link>
         </div>
       </footer>
 

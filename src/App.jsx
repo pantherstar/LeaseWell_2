@@ -5,6 +5,7 @@ import MarketingPage from './pages/MarketingPage';
 import FeaturesPage from './pages/FeaturesPage';
 import WorkflowPage from './pages/WorkflowPage';
 import PricingPage from './pages/PricingPage';
+import ContactPage from './pages/ContactPage';
 import Dashboard from './components/layout/Dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
 
@@ -27,6 +28,7 @@ function AppRoutes() {
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/workflow" element={<WorkflowPage />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/contact" element={<ContactPage />} />
 
       <Route
         path="/dashboard"

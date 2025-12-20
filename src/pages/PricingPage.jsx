@@ -71,18 +71,6 @@ const PricingPage = () => {
         </div>
       </section>
 
-      <section className="mt-20">
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-8">
-          <h2 className="text-2xl font-semibold">Need enterprise onboarding?</h2>
-          <p className="text-emerald-100/70 mt-3">
-            Multi‑property teams can request onboarding support, data migration, and custom workflows.
-          </p>
-          <Link to="/login" className="mt-5 inline-flex items-center gap-2 text-emerald-200 hover:text-white">
-            Contact sales
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
     </MarketingLayout>
   );
 };
