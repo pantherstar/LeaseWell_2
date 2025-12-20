@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Key, Mail, Home, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -14,11 +14,29 @@ const LoginPage = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const submitTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (submitTimeoutRef.current) {
+      clearTimeout(submitTimeoutRef.current);
+    }
+
+    submitTimeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setError('This is taking longer than expected. Please try again.');
+    }, 12000);
 
     try {
       if (isSignUp) {
@@ -57,6 +75,9 @@ const LoginPage = () => {
     } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+      }
       setLoading(false);
     }
   };

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { authService } from '../services/supabase/auth.service';
 import { isSupabaseConfigured } from '../services/supabase/client';
 
@@ -17,6 +17,24 @@ export const AuthProvider = ({ children }) => {
   const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const inactivityTimerRef = useRef(null);
+
+  const resetInactivityTimer = () => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = setTimeout(async () => {
+      try {
+        await authService.signOut();
+      } catch {
+        // ignore sign out errors on inactivity timeout
+      } finally {
+        setUser(null);
+        setUserType(null);
+        setSession(null);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+  };
 
   useEffect(() => {
     // Check for existing session on mount
@@ -42,6 +60,28 @@ export const AuthProvider = ({ children }) => {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      return;
+    }
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    const handleActivity = () => resetInactivityTimer();
+
+    events.forEach((event) => window.addEventListener(event, handleActivity));
+    resetInactivityTimer();
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [user]);
 
   const checkSession = async () => {
     try {
@@ -83,23 +123,17 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Sign in successful, user:', user.email);
       setSession(session);
+      setUser(user);
+      setUserType(user?.user_metadata?.role || null);
 
-      console.log('Getting current user with profile...');
-      const currentUser = await authService.getCurrentUser();
-      console.log('Current user fetched:', currentUser?.email, 'Profile:', currentUser?.profile);
+      authService.getCurrentUser().then((currentUser) => {
+        if (currentUser) {
+          setUser(currentUser);
+          setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
+        }
+      });
 
-      if (currentUser) {
-        setUser(currentUser);
-        setUserType(currentUser?.profile?.role || null);
-        console.log('Sign in complete, user type:', currentUser?.profile?.role);
-        return { user: currentUser, error: null };
-      } else {
-        // Fallback: use basic user object if getCurrentUser fails
-        console.warn('getCurrentUser failed, using basic user object');
-        setUser(user);
-        setUserType(null);
-        return { user, error: null };
-      }
+      return { user, error: null };
     } catch (error) {
       console.error('Unexpected sign in error:', error);
       return { user: null, error: error.message || 'Login failed' };
