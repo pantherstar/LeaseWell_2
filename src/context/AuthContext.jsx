@@ -113,12 +113,12 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         console.error('Sign in error:', error);
-        return { user: null, error: error.message || 'Login failed' };
+        return { user: null, error: 'Invalid email or password.' };
       }
 
       if (!user || !session) {
         console.error('No user or session returned from signIn');
-        return { user: null, error: 'Authentication failed' };
+        return { user: null, error: 'Invalid email or password.' };
       }
 
       console.log('Sign in successful, user:', user.email);
@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }) => {
       return { user, error: null };
     } catch (error) {
       console.error('Unexpected sign in error:', error);
-      return { user: null, error: error.message || 'Login failed' };
+      return { user: null, error: 'Invalid email or password.' };
     }
   };
 
