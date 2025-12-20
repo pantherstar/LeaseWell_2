@@ -38,9 +38,7 @@ const MarketingLayout = ({ children }) => {
 
       <header className="relative z-10 px-6 md:px-12 py-6 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/30 px-3 py-2 shadow-lg">
-            <img src={logoFull} alt="LeaseWell" className="h-8 w-auto" />
-          </div>
+          <img src={logoFull} alt="LeaseWell" className="h-11 sm:h-12 w-auto drop-shadow-lg" />
           <p className="text-xs text-emerald-200/80 hidden sm:block">Modern tools for modern rentals.</p>
         </Link>
         <nav className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">

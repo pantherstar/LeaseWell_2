@@ -716,8 +716,8 @@ const Dashboard = () => {
           onClick={() => setActiveTab('overview')}
           className="flex items-center gap-3"
         >
-          <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-400/30 rounded-xl flex items-center justify-center">
-            <img src={logoMark} alt="LeaseWell" className="w-6 h-6 object-contain" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+            <img src={logoMark} alt="LeaseWell" className="w-7 h-7 object-contain" />
           </div>
           {sidebarOpen && <span className="text-white font-bold text-lg">LeaseWell</span>}
         </button>
