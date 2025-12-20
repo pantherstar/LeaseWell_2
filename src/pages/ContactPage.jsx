@@ -1,7 +1,36 @@
 import { Mail, Send } from 'lucide-react';
+import { useState } from 'react';
 import MarketingLayout from '../components/marketing/MarketingLayout';
+import { sendContactMessage } from '../services/resend/contact.service';
 
 const ContactPage = () => {
+  const [formState, setFormState] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+
+  const handleChange = (field) => (event) => {
+    setFormState((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSending(true);
+    setStatus({ type: '', message: '' });
+
+    const result = await sendContactMessage(formState);
+    if (result.success) {
+      setStatus({ type: 'success', message: 'Message sent. We will reply within one business day.' });
+      setFormState({ name: '', email: '', message: '' });
+    } else {
+      setStatus({ type: 'error', message: result.error || 'Unable to send message.' });
+    }
+    setSending(false);
+  };
+
   return (
     <MarketingLayout>
       <section className="pt-8 md:pt-16">
@@ -17,15 +46,14 @@ const ContactPage = () => {
 
         <form
           className="mt-12 max-w-2xl mx-auto bg-white/5 border border-white/10 rounded-3xl p-8 space-y-5"
-          action="mailto:leasewell@protonmail.com"
-          method="POST"
-          encType="text/plain"
+          onSubmit={handleSubmit}
         >
           <div>
             <label className="block text-sm font-medium text-emerald-100/70 mb-2">Name</label>
             <input
-              name="name"
               type="text"
+              value={formState.name}
+              onChange={handleChange('name')}
               className="w-full px-4 py-3 rounded-xl bg-[#101f1b] border border-emerald-500/20 text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500"
               placeholder="Your name"
               required
@@ -34,8 +62,9 @@ const ContactPage = () => {
           <div>
             <label className="block text-sm font-medium text-emerald-100/70 mb-2">Email</label>
             <input
-              name="email"
               type="email"
+              value={formState.email}
+              onChange={handleChange('email')}
               className="w-full px-4 py-3 rounded-xl bg-[#101f1b] border border-emerald-500/20 text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500"
               placeholder="you@example.com"
               required
@@ -44,23 +73,30 @@ const ContactPage = () => {
           <div>
             <label className="block text-sm font-medium text-emerald-100/70 mb-2">Message</label>
             <textarea
-              name="message"
               rows={5}
+              value={formState.message}
+              onChange={handleChange('message')}
               className="w-full px-4 py-3 rounded-xl bg-[#101f1b] border border-emerald-500/20 text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500 resize-none"
               placeholder="Tell us about your portfolio and what you need."
               required
             />
           </div>
+          {status.message && (
+            <div className={`p-3 rounded-xl text-sm ${status.type === 'success' ? 'bg-emerald-500/10 border border-emerald-400/40 text-emerald-100' : 'bg-red-500/10 border border-red-400/40 text-red-200'}`}>
+              {status.message}
+            </div>
+          )}
           <button
             type="submit"
+            disabled={sending}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-400 text-slate-900 font-semibold hover:bg-emerald-300"
           >
-            Send message
+            {sending ? 'Sending...' : 'Send message'}
             <Send className="w-4 h-4" />
           </button>
           <p className="text-xs text-emerald-100/50 flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Messages open in your email client and send to leasewell@protonmail.com.
+            Messages are sent to leasewell@protonmail.com.
           </p>
         </form>
       </section>
