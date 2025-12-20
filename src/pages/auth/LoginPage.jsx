@@ -128,32 +128,31 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
+    <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
+      <div className="absolute -top-24 -right-20 w-96 h-96 bg-emerald-500/20 blur-[120px] rounded-full" />
+      <div className="absolute bottom-0 -left-24 w-96 h-96 bg-amber-400/15 blur-[120px] rounded-full" />
+      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">LeaseWell</h1>
-          <p className="text-slate-400 mt-2">Property Management Simplified</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</h1>
+          <p className="text-emerald-100/70 mt-2">Property Management Simplified</p>
         </div>
 
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-          <div className="flex bg-slate-800/50 rounded-xl p-1 mb-8">
+          <div className="flex bg-[#101f1b] rounded-xl p-1 mb-8">
             <button onClick={() => setUserType('landlord')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                userType === 'landlord' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                userType === 'landlord' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-emerald-100/60 hover:text-white'}`}>
               <Key className="w-4 h-4" />Landlord
             </button>
             <button onClick={() => setUserType('tenant')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                userType === 'tenant' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                userType === 'tenant' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-emerald-100/60 hover:text-white'}`}>
               <Home className="w-4 h-4" />Tenant
             </button>
           </div>
@@ -161,56 +160,56 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {(error || rateLimitMessage) && (
               <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
-                <p className="text-red-400 text-sm">{rateLimitMessage || error}</p>
+                <p className="text-red-200 text-sm">{rateLimitMessage || error}</p>
               </div>
             )}
 
             {isSignUp && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                <label className="block text-sm font-medium text-emerald-100/70 mb-2">Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-100/40" />
                   <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                    className="w-full pl-12 pr-4 py-3.5 bg-[#101f1b] border border-emerald-500/20 rounded-xl text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500" required />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+              <label className="block text-sm font-medium text-emerald-100/70 mb-2">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-100/40" />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                  className="w-full pl-12 pr-4 py-3.5 bg-[#101f1b] border border-emerald-500/20 rounded-xl text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500" required />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-emerald-100/70 mb-2">Password</label>
               <div className="relative">
-                <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-100/40" />
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                  className="w-full pl-12 pr-4 py-3.5 bg-[#101f1b] border border-emerald-500/20 rounded-xl text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500" required />
               </div>
             </div>
 
             {isSignUp && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
+                <label className="block text-sm font-medium text-emerald-100/70 mb-2">Confirm Password</label>
                 <div className="relative">
-                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-100/40" />
                   <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500" required />
+                    className="w-full pl-12 pr-4 py-3.5 bg-[#101f1b] border border-emerald-500/20 rounded-xl text-white placeholder-emerald-100/40 focus:ring-2 focus:ring-emerald-500" required />
                 </div>
               </div>
             )}
 
             {!isSignUp && (
               <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-slate-400 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded border-slate-600 text-emerald-500 bg-slate-800" />Remember me
+                <label className="flex items-center gap-2 text-emerald-100/60 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded border-emerald-500/40 text-emerald-500 bg-[#101f1b]" />Remember me
                 </label>
-                <a href="#" className="text-emerald-400 hover:text-emerald-300">Forgot password?</a>
+                <a href="#" className="text-emerald-300 hover:text-emerald-200">Forgot password?</a>
               </div>
             )}
 
@@ -228,7 +227,7 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-emerald-100/60 text-sm">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 type="button"
@@ -236,14 +235,14 @@ const LoginPage = () => {
                   setIsSignUp(!isSignUp);
                   setError('');
                 }}
-                className="text-emerald-400 hover:text-emerald-300 font-medium"
+                className="text-emerald-300 hover:text-emerald-200 font-medium"
               >
                 {isSignUp ? 'Sign in' : 'Create one'}
               </button>
             </p>
           </div>
         </div>
-        <p className="text-center text-slate-500 text-sm mt-6">© 2024 LeaseWell. All rights reserved.</p>
+        <p className="text-center text-emerald-100/50 text-sm mt-6">© 2025 LeaseWell. A product of Northridge Technologies LLC.</p>
       </div>
     </div>
   );

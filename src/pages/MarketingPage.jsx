@@ -1,5 +1,6 @@
-import { ArrowRight, Building2, CheckCircle2, ShieldCheck, Sparkles, Users, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Users, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import MarketingLayout from '../components/marketing/MarketingLayout';
 
 const features = [
   {
@@ -29,30 +30,7 @@ const proofPoints = [
 
 const MarketingPage = () => {
   return (
-    <div className="min-h-screen bg-[#0b1513] text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
-      <div className="absolute -top-24 -right-20 w-96 h-96 bg-emerald-500/20 blur-[120px] rounded-full" />
-      <div className="absolute bottom-0 -left-24 w-96 h-96 bg-amber-400/15 blur-[120px] rounded-full" />
-
-      <header className="relative z-10 px-6 md:px-12 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
-            <Building2 className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-lg font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</p>
-            <p className="text-xs text-emerald-200/80">Property ops, done clean.</p>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">
-          <a href="#features" className="hover:text-white">Features</a>
-          <a href="#workflow" className="hover:text-white">Workflow</a>
-          <a href="#pricing" className="hover:text-white">Pricing</a>
-          <Link to="/login" className="px-4 py-2 rounded-full bg-white text-slate-900 font-semibold hover:bg-emerald-100">Sign In</Link>
-        </div>
-      </header>
-
-      <main className="relative z-10 px-6 md:px-12 pb-20">
+    <MarketingLayout>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-8 md:pt-16">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-400/30 rounded-full text-emerald-100 text-sm">
@@ -123,7 +101,7 @@ const MarketingPage = () => {
           </div>
         </section>
 
-        <section id="features" className="mt-20">
+        <section className="mt-20">
           <div className="flex items-end justify-between flex-wrap gap-4">
             <h2 className="text-3xl md:text-4xl font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
               Everything your portfolio needs.
@@ -143,9 +121,15 @@ const MarketingPage = () => {
               </div>
             ))}
           </div>
+          <div className="mt-8">
+            <Link to="/features" className="inline-flex items-center gap-2 text-emerald-200 hover:text-white">
+              Explore all features
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </section>
 
-        <section id="workflow" className="mt-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <section className="mt-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="bg-[#101f1b] border border-emerald-500/10 rounded-3xl p-8">
             <p className="text-emerald-300 text-sm uppercase tracking-[0.2em]">Workflow</p>
             <h2 className="text-3xl md:text-4xl font-semibold mt-3" style={{ fontFamily: 'var(--font-display)' }}>
@@ -179,10 +163,16 @@ const MarketingPage = () => {
                 Offer card, ACH, or offline payment recording with landlord‑verified confirmations.
               </p>
             </div>
+            <div className="pt-2">
+              <Link to="/workflow" className="inline-flex items-center gap-2 text-emerald-200 hover:text-white">
+                See the full workflow
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </section>
 
-        <section id="pricing" className="mt-20">
+        <section className="mt-20">
           <div className="bg-gradient-to-r from-emerald-400/10 via-emerald-500/5 to-amber-400/10 border border-emerald-500/20 rounded-3xl p-10">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
               <div>
@@ -217,6 +207,12 @@ const MarketingPage = () => {
               </div>
             </div>
           </div>
+          <div className="mt-6">
+            <Link to="/pricing" className="inline-flex items-center gap-2 text-emerald-200 hover:text-white">
+              Compare plans
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </section>
 
         <section className="mt-20 text-center">
@@ -231,24 +227,7 @@ const MarketingPage = () => {
             <ArrowRight className="w-4 h-4" />
           </Link>
         </section>
-      </main>
-
-      <footer className="relative z-10 px-6 md:px-12 py-10 border-t border-white/10 text-emerald-100/60 text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <p>© 2025 LeaseWell. Built for modern property teams.</p>
-        <div className="flex gap-6">
-          <Link to="/login" className="hover:text-white">Sign in</Link>
-          <a href="#features" className="hover:text-white">Features</a>
-          <a href="#pricing" className="hover:text-white">Pricing</a>
-        </div>
-      </footer>
-
-      <style>{`
-        @keyframes rise {
-          0% { transform: translateY(12px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
-        }
-      `}</style>
-    </div>
+    </MarketingLayout>
   );
 };
 

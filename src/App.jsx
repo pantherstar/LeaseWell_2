@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/auth/LoginPage';
 import MarketingPage from './pages/MarketingPage';
+import FeaturesPage from './pages/FeaturesPage';
+import WorkflowPage from './pages/WorkflowPage';
+import PricingPage from './pages/PricingPage';
 import Dashboard from './components/layout/Dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
 
@@ -20,6 +23,10 @@ function AppRoutes() {
           )
         }
       />
+
+      <Route path="/features" element={<FeaturesPage />} />
+      <Route path="/workflow" element={<WorkflowPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
 
       <Route
         path="/dashboard"
