@@ -5,7 +5,7 @@ const ContactPage = () => {
   return (
     <MarketingLayout>
       <section className="pt-8 md:pt-16">
-        <div className="max-w-2xl">
+        <div className="max-w-2xl mx-auto text-center">
           <p className="text-emerald-300 text-sm uppercase tracking-[0.2em]">Contact</p>
           <h1 className="text-4xl md:text-6xl font-semibold mt-4" style={{ fontFamily: 'var(--font-display)' }}>
             Let’s talk about your portfolio.
