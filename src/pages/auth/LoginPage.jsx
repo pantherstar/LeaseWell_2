@@ -242,7 +242,6 @@ const LoginPage = () => {
             </p>
           </div>
         </div>
-        <p className="text-center text-emerald-100/50 text-sm mt-6">© 2025 LeaseWell. A product of Northridge Technologies LLC.</p>
       </div>
     </div>
   );
