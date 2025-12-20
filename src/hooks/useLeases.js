@@ -8,6 +8,7 @@ import {
 } from '../services/supabase/database.service';
 import { isSupabaseConfigured } from '../services/supabase/client';
 import { mockLeases } from '../utils/mockData';
+import { createLeaseByEmail } from '../services/supabase/leases.service';
 
 /**
  * Hook for managing leases
@@ -18,6 +19,9 @@ export const useLeases = (filters = {}) => {
   const [leases, setLeases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Stringify filters to avoid object reference issues in dependencies
+  const filtersKey = JSON.stringify(filters);
 
   const fetchLeases = useCallback(async () => {
     setLoading(true);
@@ -30,7 +34,7 @@ export const useLeases = (filters = {}) => {
       return;
     }
 
-    const { data, error: fetchError } = await getLeases(filters);
+    const { data, error: fetchError } = await getLeases(JSON.parse(filtersKey));
 
     if (fetchError) {
       setError(fetchError.message);
@@ -40,14 +44,18 @@ export const useLeases = (filters = {}) => {
     }
 
     setLoading(false);
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchLeases();
   }, [fetchLeases]);
 
   const create = async (leaseData) => {
-    const { data, error: createError } = await createLease(leaseData);
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { data, error: createError } = await createLeaseByEmail(leaseData);
 
     if (createError) {
       return { success: false, error: createError.message };

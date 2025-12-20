@@ -55,6 +55,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 9. Repeat steps 3-8 for:
    - `002_row_level_security.sql`
    - `003_storage_setup.sql`
+   - `004_tenant_invites.sql`
 
 ### Option B: Using Supabase CLI (Advanced)
 
@@ -109,6 +110,7 @@ supabase db push
    - notifications
    - tenant_screenings
    - transactions
+   - tenant_invites
 
 3. Click on each table to verify the structure
 
@@ -196,6 +198,56 @@ Once Supabase is set up and working:
 2. ✅ Test creating properties (landlords only)
 3. ✅ Test uploading documents
 4. Move on to Phase 3: Stripe Payment Integration
+
+## Stripe Payments
+
+To enable Stripe payments:
+
+1. Create a Stripe account and get your API keys
+2. Add Supabase Edge Function secrets:
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+3. Deploy the Edge Functions:
+   - `create-payment-intent`
+   - `stripe-webhook`
+4. Add the Stripe publishable key to your app:
+
+```env
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_key
+```
+
+The payment flow uses Stripe Payment Intents and writes records to the `payments` table.
+
+## Stripe Connect (Landlord Payouts)
+
+This app uses Stripe Connect Express so each landlord receives their own payouts.
+
+1. Run the migration `005_stripe_connect.sql` to add `stripe_account_id` to profiles.
+2. Deploy the Edge Function `create-connect-account`.
+3. Ensure `STRIPE_SECRET_KEY` is set in Supabase Edge Function secrets (live or test).
+4. In the app, landlords click **Connect Stripe** to complete onboarding.
+5. Tenants can only pay rent after the landlord connects a Stripe account.
+
+## Offline Payments (Zelle/Check/Cash)
+
+Tenants can record offline payments, which landlords can later mark as paid.
+
+1. Deploy the Edge Function `record-offline-payment`.
+2. Tenants use **Record Zelle/Cash** in the Payments tab.
+3. Landlords use **Mark Paid** to confirm the payment.
+
+## Email Invites (Resend)
+
+To enable tenant invite emails:
+
+1. Create a Resend account and verify your sender domain
+2. In the Supabase dashboard, open **Edge Functions** → **Environment Variables**
+3. Add the following variables:
+   - `RESEND_API_KEY`
+   - `RESEND_FROM_EMAIL` (e.g. `LeaseWell <noreply@yourdomain.com>`)
+4. Deploy the edge function `send-tenant-invite`
+
+Once configured, landlords can send email invites from the Properties tab.
 
 ## Security Best Practices
 

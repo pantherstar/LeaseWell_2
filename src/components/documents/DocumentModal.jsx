@@ -1,21 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Upload, FileText } from 'lucide-react';
 
-const DocumentModal = ({ isOpen, onClose, onUpload }) => {
+const DocumentModal = ({ isOpen, onClose, onUpload, properties = [] }) => {
   const [file, setFile] = useState(null);
   const [docType, setDocType] = useState('lease');
-  const [property, setProperty] = useState('');
+  const [propertyId, setPropertyId] = useState('');
+  const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const handleUpload = (e) => {
+  useEffect(() => {
+    if (isOpen && properties.length === 1) {
+      setPropertyId(properties[0].id);
+    }
+  }, [isOpen, properties]);
+
+  const handleUpload = async (e) => {
     e.preventDefault();
     setUploading(true);
-    setTimeout(() => {
-      onUpload({ file, docType, property });
-      setUploading(false);
-      setFile(null); setDocType('lease'); setProperty('');
+    const result = await onUpload({
+      file,
+      docType,
+      propertyId,
+      description
+    });
+    setUploading(false);
+    if (result?.success) {
+      setFile(null);
+      setDocType('lease');
+      setPropertyId('');
+      setDescription('');
       onClose();
-    }, 2000);
+    }
   };
 
   if (!isOpen) return null;
@@ -47,15 +62,39 @@ const DocumentModal = ({ isOpen, onClose, onUpload }) => {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Property</label>
-            <input type="text" value={property} onChange={(e) => setProperty(e.target.value)}
-              placeholder="e.g., 742 Evergreen Terrace, Unit A"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500" required />
+            <select
+              value={propertyId}
+              onChange={(e) => setPropertyId(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500"
+              required
+            >
+              <option value="" disabled>Select a property</option>
+              {properties.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {property.address}{property.unit_number ? `, ${property.unit_number}` : ''} ({property.city})
+                </option>
+              ))}
+            </select>
+            {properties.length === 0 && (
+              <p className="text-xs text-slate-500 mt-2">Add a property before uploading documents.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Description (optional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add a short note for this document"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 resize-none"
+              rows={3}
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">File</label>
             <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-violet-400 transition-colors">
-              <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} className="hidden" id="doc-upload" />
+              <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files[0])} className="hidden" id="doc-upload" />
               <label htmlFor="doc-upload" className="cursor-pointer">
                 {file ? (
                   <div className="flex items-center justify-center gap-3">
@@ -69,7 +108,7 @@ const DocumentModal = ({ isOpen, onClose, onUpload }) => {
             </div>
           </div>
 
-          <button type="submit" disabled={uploading || !file}
+          <button type="submit" disabled={uploading || !file || !propertyId}
             className="w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold rounded-xl hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center gap-2">
             {uploading ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Uploading...</>)
               : (<><Upload className="w-5 h-5" />Upload Document</>)}

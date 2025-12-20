@@ -68,18 +68,40 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async ({ email, password }) => {
     try {
+      console.log('Starting sign in...');
       const { user, session, error } = await authService.signIn({ email, password });
 
       if (error) {
+        console.error('Sign in error:', error);
         return { user: null, error: error.message || 'Login failed' };
       }
 
+      if (!user || !session) {
+        console.error('No user or session returned from signIn');
+        return { user: null, error: 'Authentication failed' };
+      }
+
+      console.log('Sign in successful, user:', user.email);
       setSession(session);
+
+      console.log('Getting current user with profile...');
       const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-      setUserType(currentUser?.profile?.role);
-      return { user: currentUser, error: null };
+      console.log('Current user fetched:', currentUser?.email, 'Profile:', currentUser?.profile);
+
+      if (currentUser) {
+        setUser(currentUser);
+        setUserType(currentUser?.profile?.role || null);
+        console.log('Sign in complete, user type:', currentUser?.profile?.role);
+        return { user: currentUser, error: null };
+      } else {
+        // Fallback: use basic user object if getCurrentUser fails
+        console.warn('getCurrentUser failed, using basic user object');
+        setUser(user);
+        setUserType(null);
+        return { user, error: null };
+      }
     } catch (error) {
+      console.error('Unexpected sign in error:', error);
       return { user: null, error: error.message || 'Login failed' };
     }
   };

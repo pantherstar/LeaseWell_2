@@ -20,6 +20,9 @@ export const useMaintenance = (filters = {}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Stringify filters to avoid object reference issues in dependencies
+  const filtersKey = JSON.stringify(filters);
+
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -31,7 +34,7 @@ export const useMaintenance = (filters = {}) => {
       return;
     }
 
-    const { data, error: fetchError } = await getMaintenanceRequests(filters);
+    const { data, error: fetchError } = await getMaintenanceRequests(JSON.parse(filtersKey));
 
     if (fetchError) {
       setError(fetchError.message);
@@ -41,7 +44,7 @@ export const useMaintenance = (filters = {}) => {
     }
 
     setLoading(false);
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchRequests();

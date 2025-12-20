@@ -19,6 +19,9 @@ export const useDocuments = (filters = {}) => {
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Stringify filters to avoid object reference issues in dependencies
+  const filtersKey = JSON.stringify(filters);
+
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -30,7 +33,7 @@ export const useDocuments = (filters = {}) => {
       return;
     }
 
-    const { data, error: fetchError } = await getDocuments(filters);
+    const { data, error: fetchError } = await getDocuments(JSON.parse(filtersKey));
 
     if (fetchError) {
       setError(fetchError.message);
@@ -40,7 +43,7 @@ export const useDocuments = (filters = {}) => {
     }
 
     setLoading(false);
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchDocuments();

@@ -18,6 +18,9 @@ export const usePayments = (filters = {}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Stringify filters to avoid object reference issues in dependencies
+  const filtersKey = JSON.stringify(filters);
+
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -29,7 +32,7 @@ export const usePayments = (filters = {}) => {
       return;
     }
 
-    const { data, error: fetchError } = await getPayments(filters);
+    const { data, error: fetchError } = await getPayments(JSON.parse(filtersKey));
 
     if (fetchError) {
       setError(fetchError.message);
@@ -39,7 +42,7 @@ export const usePayments = (filters = {}) => {
     }
 
     setLoading(false);
-  }, [filters]);
+  }, [filtersKey]);
 
   useEffect(() => {
     fetchPayments();

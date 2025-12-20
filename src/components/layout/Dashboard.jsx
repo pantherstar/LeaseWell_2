@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Building2, FileText, Wrench, CreditCard, LogOut, Calendar, DollarSign,
   CheckCircle, Clock, User, Home, Plus, Eye, Download, X, Menu, Bell,
@@ -8,10 +8,18 @@ import { useAuth } from '../../context/AuthContext';
 import PaymentModal from '../payments/PaymentModal';
 import MaintenanceModal from '../maintenance/MaintenanceModal';
 import DocumentModal from '../documents/DocumentModal';
+import LeaseModal from '../leases/LeaseModal';
+import OfflinePaymentModal from '../payments/OfflinePaymentModal';
 import { useLeases } from '../../hooks/useLeases';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import { useDocuments } from '../../hooks/useDocuments';
 import { usePayments, usePaymentStats } from '../../hooks/usePayments';
+import { useProperties } from '../../hooks/useProperties';
+import { useProfile } from '../../hooks/useProfile';
+import { sendTenantInvite } from '../../services/supabase/invites.service';
+import { createConnectAccountLink } from '../../services/stripe/connect.service';
+import PropertyModal from '../properties/PropertyModal';
+import InviteTenantModal from '../tenants/InviteTenantModal';
 
 const Dashboard = () => {
   const { userType, signOut } = useAuth();
@@ -21,14 +29,32 @@ const Dashboard = () => {
   const [selectedLease, setSelectedLease] = useState(null);
   const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [propertyModalOpen, setPropertyModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [invitePropertyId, setInvitePropertyId] = useState('');
+  const [leaseModalOpen, setLeaseModalOpen] = useState(false);
+  const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
   // Use custom hooks for data fetching
-  const { leases, loading: leasesLoading, refetch: refetchLeases } = useLeases();
+  const { leases, loading: leasesLoading, create: createLease, refetch: refetchLeases } = useLeases();
   const { requests: maintenanceRequests, loading: maintenanceLoading, create: createMaintenance, refetch: refetchMaintenance } = useMaintenance();
-  const { documents, loading: documentsLoading, upload: uploadDocument, refetch: refetchDocuments } = useDocuments();
-  const { payments, loading: paymentsLoading, refetch: refetchPayments } = usePayments();
+  const { documents, loading: documentsLoading, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
+  const { payments, loading: paymentsLoading, update: updatePayment, refetch: refetchPayments } = usePayments();
+  const { properties, loading: propertiesLoading, create: createProperty, refetch: refetchProperties } = useProperties();
+  const { profile, loading: profileLoading, refetch: refetchProfile } = useProfile();
   const paymentStats = usePaymentStats(payments);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe') === 'connected') {
+      refetchProfile();
+      showNotification('Stripe connected successfully!');
+      params.delete('stripe');
+      const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [refetchProfile]);
 
   const showNotification = (message) => {
     setNotification(message);
@@ -36,7 +62,19 @@ const Dashboard = () => {
   };
 
   // Show loading state while data is being fetched
-  const isLoading = leasesLoading || maintenanceLoading || documentsLoading || paymentsLoading;
+  // Only show loading for initial load, not if all are still loading (which might indicate an error)
+  const isLoading = leasesLoading && maintenanceLoading && documentsLoading && paymentsLoading && propertiesLoading && profileLoading;
+
+  // Debug: Log loading states
+  console.log('Dashboard loading states:', {
+    leasesLoading,
+    maintenanceLoading,
+    documentsLoading,
+    paymentsLoading,
+    propertiesLoading,
+    profileLoading,
+    userType
+  });
 
   if (isLoading) {
     return (
@@ -49,6 +87,7 @@ const Dashboard = () => {
           <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden mx-auto">
             <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
           </div>
+          <p className="text-slate-500 text-sm mt-4">If this takes too long, check your browser console for errors</p>
         </div>
       </div>
     );
@@ -56,6 +95,7 @@ const Dashboard = () => {
 
   const menuItems = userType === 'landlord' ? [
     { id: 'overview', label: 'Overview', icon: Building2 },
+    { id: 'properties', label: 'Properties', icon: Home },
     { id: 'leases', label: 'Leases', icon: FileText },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     { id: 'documents', label: 'Documents', icon: FileText },
@@ -71,6 +111,67 @@ const Dashboard = () => {
     showNotification('Payment processed successfully!');
     // Refetch payments to get updated data
     await refetchPayments();
+  };
+
+  const handleOfflinePayment = async ({ amount, method, paymentDate, notes }) => {
+    if (!leases[0]?.id) {
+      return { success: false, error: 'No active lease found.' };
+    }
+
+    const { recordOfflinePayment } = await import('../../services/payments/offline.service');
+    const result = await recordOfflinePayment({
+      leaseId: leases[0].id,
+      amount,
+      method,
+      paymentDate,
+      notes
+    });
+
+    if (result.success) {
+      showNotification('Payment recorded! Your landlord will confirm it.');
+      await refetchPayments();
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+
+    return result;
+  };
+
+  const handleMarkPaymentPaid = async (paymentId) => {
+    const result = await updatePayment(paymentId, { status: 'paid' });
+    if (result.success) {
+      showNotification('Payment marked as paid.');
+      await refetchPayments();
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    const { url, error } = await createConnectAccountLink({
+      refreshUrl: window.location.href,
+      returnUrl: `${window.location.origin}/dashboard?stripe=connected`
+    });
+
+    if (error) {
+      showNotification(`Error: ${error}`);
+      return;
+    }
+
+    if (url) {
+      window.location.href = url;
+    }
+  };
+
+  const handleCreateLease = async (data) => {
+    const result = await createLease(data);
+    if (result.success) {
+      showNotification('Lease created!');
+      await refetchLeases();
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+    return result;
   };
 
   const handleMaintenanceSubmit = async (data) => {
@@ -94,7 +195,7 @@ const Dashboard = () => {
   const handleDocumentUpload = async (data) => {
     if (!data.file) {
       showNotification('Please select a file to upload');
-      return;
+      return { success: false };
     }
 
     const result = await uploadDocument(data.file, {
@@ -106,7 +207,46 @@ const Dashboard = () => {
 
     if (result.success) {
       showNotification('Document uploaded successfully!');
-      setDocumentModalOpen(false);
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+    return result;
+  };
+
+  const handleCreateProperty = async (data) => {
+    const result = await createProperty(data);
+    if (result.success) {
+      showNotification('Property created!');
+      await refetchProperties();
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+    return result;
+  };
+
+  const handleInviteTenant = async ({ propertyId, tenantEmail, tenantName }) => {
+    const result = await sendTenantInvite({ propertyId, tenantEmail, tenantName, appUrl: window.location.origin });
+    if (result.error) {
+      showNotification(`Error: ${result.error.message || result.error}`);
+      return { success: false };
+    }
+    showNotification('Invite sent successfully!');
+    return { success: true };
+  };
+
+  const handleDocumentView = async (filePath) => {
+    const result = await downloadDocument(filePath);
+    if (result.success) {
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+  };
+
+  const handleDocumentDownload = async (filePath) => {
+    const result = await downloadDocument(filePath);
+    if (result.success) {
+      window.open(result.url, '_blank', 'noopener,noreferrer');
     } else {
       showNotification(`Error: ${result.error}`);
     }
@@ -129,6 +269,17 @@ const Dashboard = () => {
 
     return (
       <div className="space-y-6">
+        {!profile?.stripe_account_id && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-slate-800 font-semibold">Connect Stripe to receive payments</h3>
+              <p className="text-sm text-slate-600 mt-1">Landlords must connect a Stripe account before tenants can pay rent.</p>
+            </div>
+            <button onClick={handleConnectStripe} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 font-medium">
+              Connect Stripe
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white">
             <div className="flex items-center justify-between">
@@ -260,7 +411,18 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h2 className="text-2xl font-bold text-slate-800">Lease Management</h2><p className="text-slate-500">Track all your property leases</p></div>
-        <button className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"><Plus className="w-5 h-5" />Add Lease</button>
+        <button
+          onClick={() => {
+            if (properties.length === 0) {
+              showNotification('Add a property before creating a lease.');
+              return;
+            }
+            setLeaseModalOpen(true);
+          }}
+          className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
+        >
+          <Plus className="w-5 h-5" />Add Lease
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -277,31 +439,94 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {leases.map(lease => (
-                <tr key={lease.id} className="hover:bg-slate-50">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><Home className="w-5 h-5 text-emerald-600" /></div>
-                      <span className="font-medium text-slate-800">{lease.property}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-slate-600">{lease.tenant}</td>
-                  <td className="py-4 px-6"><div className="text-sm"><p className="text-slate-800">{new Date(lease.startDate).toLocaleDateString()} - {new Date(lease.endDate).toLocaleDateString()}</p><p className="text-slate-500">{lease.daysRemaining} days remaining</p></div></td>
-                  <td className="py-4 px-6 font-semibold text-slate-800">${lease.rent.toLocaleString()}/mo</td>
-                  <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-medium ${lease.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{lease.status === 'expiring' ? `Expiring in ${lease.daysRemaining} days` : 'Active'}</span></td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 hover:bg-slate-100 rounded-lg"><Eye className="w-4 h-4 text-slate-500" /></button>
-                      <button className="p-2 hover:bg-slate-100 rounded-lg"><Edit className="w-4 h-4 text-slate-500" /></button>
-                      <button className="p-2 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-500" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {leases.map(lease => {
+                const propertyLabel = lease.property?.address || lease.property || 'Property';
+                const tenantLabel = lease.tenant?.full_name || lease.tenant || 'Tenant';
+                const startDate = lease.start_date || lease.startDate;
+                const endDate = lease.end_date || lease.endDate;
+                const monthlyRent = lease.monthly_rent ?? lease.rent ?? 0;
+                const daysRemaining = endDate ? Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                return (
+                  <tr key={lease.id} className="hover:bg-slate-50">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><Home className="w-5 h-5 text-emerald-600" /></div>
+                        <span className="font-medium text-slate-800">{propertyLabel}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-slate-600">{tenantLabel}</td>
+                    <td className="py-4 px-6">
+                      <div className="text-sm">
+                        <p className="text-slate-800">
+                          {startDate ? new Date(startDate).toLocaleDateString() : '—'} - {endDate ? new Date(endDate).toLocaleDateString() : '—'}
+                        </p>
+                        <p className="text-slate-500">{daysRemaining != null ? `${daysRemaining} days remaining` : '—'}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 font-semibold text-slate-800">${Number(monthlyRent).toLocaleString()}/mo</td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${lease.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                        {lease.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
+                        <button className="p-2 hover:bg-slate-100 rounded-lg"><Eye className="w-4 h-4 text-slate-500" /></button>
+                        <button className="p-2 hover:bg-slate-100 rounded-lg"><Edit className="w-4 h-4 text-slate-500" /></button>
+                        <button className="p-2 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-500" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+  );
+
+  const PropertiesTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-2xl font-bold text-slate-800">Properties</h2><p className="text-slate-500">Manage your rental properties</p></div>
+        <button onClick={() => setPropertyModalOpen(true)} className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"><Plus className="w-5 h-5" />Add Property</button>
+      </div>
+
+      {properties.length === 0 ? (
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
+          <p className="text-slate-500">No properties yet. Add your first property to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {properties.map((property) => (
+            <div key={property.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-semibold text-slate-800">{property.address}{property.unit_number ? `, ${property.unit_number}` : ''}</h3>
+                  <p className="text-sm text-slate-500">{property.city}, {property.state} {property.zip_code}</p>
+                  <div className="flex items-center gap-4 mt-3 text-sm text-slate-500">
+                    <span>{property.property_type || 'Property'}</span>
+                    {property.bedrooms != null && <span>{property.bedrooms} bd</span>}
+                    {property.bathrooms != null && <span>{property.bathrooms} ba</span>}
+                    {property.square_feet != null && <span>{property.square_feet} sqft</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setInvitePropertyId(property.id);
+                    setInviteModalOpen(true);
+                  }}
+                  className="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium"
+                >
+                  Invite Tenant
+                </button>
+              </div>
+              {property.description && <p className="text-sm text-slate-600 mt-4">{property.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -353,26 +578,37 @@ const Dashboard = () => {
         {userType === 'landlord' && (<button onClick={() => setDocumentModalOpen(true)} className="px-4 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 flex items-center gap-2 font-medium"><Upload className="w-5 h-5" />Upload Document</button>)}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {documents.map(doc => (
-          <div key={doc.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
-            <div className="flex items-start gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${doc.type === 'lease' ? 'bg-violet-100' : doc.type === 'inspection' ? 'bg-blue-100' : doc.type === 'insurance' ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                <FileText className={`w-6 h-6 ${doc.type === 'lease' ? 'text-violet-600' : doc.type === 'inspection' ? 'text-blue-600' : doc.type === 'insurance' ? 'text-emerald-600' : 'text-slate-600'}`} />
+      {documents.length === 0 ? (
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
+          <p className="text-slate-500">No documents uploaded yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {documents.map(doc => {
+            const createdAt = doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '—';
+            const sizeMb = doc.file_size ? `${(doc.file_size / (1024 * 1024)).toFixed(2)} MB` : '—';
+            const docType = doc.document_type || 'other';
+            return (
+              <div key={doc.id} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${docType === 'lease' ? 'bg-violet-100' : docType === 'inspection' ? 'bg-blue-100' : docType === 'insurance' ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                    <FileText className={`w-6 h-6 ${docType === 'lease' ? 'text-violet-600' : docType === 'inspection' ? 'text-blue-600' : docType === 'insurance' ? 'text-emerald-600' : 'text-slate-600'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-slate-800 truncate">{doc.file_name}</h3>
+                    <p className="text-sm text-slate-500 truncate">{doc.property?.address || 'General'}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400"><span>{createdAt}</span><span>{sizeMb}</span></div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <button onClick={() => handleDocumentView(doc.file_path)} className="flex-1 py-2 text-sm font-medium text-slate-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg flex items-center justify-center gap-1"><Eye className="w-4 h-4" />View</button>
+                  <button onClick={() => handleDocumentDownload(doc.file_path)} className="flex-1 py-2 text-sm font-medium text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg flex items-center justify-center gap-1"><Download className="w-4 h-4" />Download</button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-slate-800 truncate">{doc.name}</h3>
-                <p className="text-sm text-slate-500 truncate">{doc.property}</p>
-                <div className="flex items-center gap-3 mt-2 text-xs text-slate-400"><span>{doc.uploadDate}</span><span>{doc.size}</span></div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button className="flex-1 py-2 text-sm font-medium text-slate-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg flex items-center justify-center gap-1"><Eye className="w-4 h-4" />View</button>
-              <button className="flex-1 py-2 text-sm font-medium text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg flex items-center justify-center gap-1"><Download className="w-4 h-4" />Download</button>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
@@ -386,8 +622,15 @@ const Dashboard = () => {
       {userType === 'tenant' && (
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">
           <div className="flex items-center justify-between">
-            <div><p className="text-emerald-100">Next Payment Due</p><p className="text-3xl font-bold mt-1">${leases[0].rent.toLocaleString()}</p><p className="text-emerald-100 mt-2">Due: January 1, 2025</p></div>
-            <button onClick={() => { setSelectedLease(leases[0]); setPaymentModalOpen(true); }} className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-xl hover:bg-emerald-50">Pay Now</button>
+            <div>
+              <p className="text-emerald-100">Next Payment Due</p>
+              <p className="text-3xl font-bold mt-1">${(leases[0]?.monthly_rent ?? leases[0]?.rent ?? 0).toLocaleString()}</p>
+              <p className="text-emerald-100 mt-2">Due: January 1, 2025</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setSelectedLease(leases[0]); setPaymentModalOpen(true); }} className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-xl hover:bg-emerald-50">Pay Now</button>
+              <button onClick={() => setOfflinePaymentModalOpen(true)} className="px-6 py-3 bg-emerald-800 text-white font-semibold rounded-xl hover:bg-emerald-700">Record Zelle/Cash</button>
+            </div>
           </div>
         </div>
       )}
@@ -403,21 +646,35 @@ const Dashboard = () => {
                 <th className="text-left py-4 px-6 text-sm font-semibold text-slate-600">Date</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-slate-600">Status</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-slate-600">Method</th>
+                {userType === 'landlord' && <th className="text-left py-4 px-6 text-sm font-semibold text-slate-600">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {payments.map(payment => (
                 <tr key={payment.id} className="hover:bg-slate-50">
-                  {userType === 'landlord' && <td className="py-4 px-6 font-medium text-slate-800">{payment.tenant}</td>}
-                  <td className="py-4 px-6 text-slate-600">{payment.property}</td>
-                  <td className="py-4 px-6 font-semibold text-slate-800">${payment.amount.toLocaleString()}</td>
-                  <td className="py-4 px-6 text-slate-600">{new Date(payment.date).toLocaleDateString()}</td>
+                  {userType === 'landlord' && <td className="py-4 px-6 font-medium text-slate-800">{payment.tenant?.full_name || payment.tenant || 'Tenant'}</td>}
+                  <td className="py-4 px-6 text-slate-600">{payment.lease?.property?.address || payment.property || 'Property'}</td>
+                  <td className="py-4 px-6 font-semibold text-slate-800">${Number(payment.amount).toLocaleString()}</td>
+                  <td className="py-4 px-6 text-slate-600">{new Date(payment.payment_date || payment.date).toLocaleDateString()}</td>
                   <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-medium ${payment.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{payment.status === 'paid' ? 'Paid' : 'Pending'}</span></td>
                   <td className="py-4 px-6">
-                    {payment.method === 'card' && <CreditCard className="w-5 h-5 text-slate-400" />}
-                    {payment.method === 'bank' && <Building2 className="w-5 h-5 text-slate-400" />}
-                    {payment.method === 'pending' && <Clock className="w-5 h-5 text-amber-500" />}
+                    {payment.payment_method === 'card' && <CreditCard className="w-5 h-5 text-slate-400" />}
+                    {payment.payment_method === 'bank_transfer' && <Building2 className="w-5 h-5 text-slate-400" />}
+                    {payment.payment_method === 'check' && <FileText className="w-5 h-5 text-slate-400" />}
+                    {payment.payment_method === 'cash' && <Clock className="w-5 h-5 text-amber-500" />}
                   </td>
+                  {userType === 'landlord' && (
+                    <td className="py-4 px-6">
+                      {payment.status === 'pending' && payment.payment_method !== 'card' && (
+                        <button
+                          onClick={() => handleMarkPaymentPaid(payment.id)}
+                          className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700"
+                        >
+                          Mark Paid
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -430,6 +687,7 @@ const Dashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return userType === 'landlord' ? <LandlordOverview /> : <TenantOverview />;
+      case 'properties': return <PropertiesTab />;
       case 'leases': return <LeasesTab />;
       case 'maintenance': return <MaintenanceTab />;
       case 'documents': return <DocumentsTab />;
@@ -494,8 +752,31 @@ const Dashboard = () => {
       </main>
 
       <PaymentModal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} lease={selectedLease} onPaymentSuccess={handlePaymentSuccess} />
+      <OfflinePaymentModal
+        isOpen={offlinePaymentModalOpen}
+        onClose={() => setOfflinePaymentModalOpen(false)}
+        onSubmit={handleOfflinePayment}
+        defaultAmount={leases[0]?.monthly_rent ?? leases[0]?.rent ?? ''}
+      />
       <MaintenanceModal isOpen={maintenanceModalOpen} onClose={() => setMaintenanceModalOpen(false)} onSubmit={handleMaintenanceSubmit} />
-      <DocumentModal isOpen={documentModalOpen} onClose={() => setDocumentModalOpen(false)} onUpload={handleDocumentUpload} />
+      <DocumentModal isOpen={documentModalOpen} onClose={() => setDocumentModalOpen(false)} onUpload={handleDocumentUpload} properties={properties} />
+      <PropertyModal isOpen={propertyModalOpen} onClose={() => setPropertyModalOpen(false)} onCreate={handleCreateProperty} />
+      <LeaseModal
+        isOpen={leaseModalOpen}
+        onClose={() => setLeaseModalOpen(false)}
+        onCreate={handleCreateLease}
+        properties={properties}
+      />
+      <InviteTenantModal
+        isOpen={inviteModalOpen}
+        onClose={() => {
+          setInviteModalOpen(false);
+          setInvitePropertyId('');
+        }}
+        onInvite={handleInviteTenant}
+        properties={properties}
+        defaultPropertyId={invitePropertyId}
+      />
 
       <style>{`
         @keyframes slide-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
