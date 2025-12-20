@@ -47,6 +47,7 @@ const MarketingLayout = ({ children }) => {
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">
+          <Link to="/" className="hover:text-white">Home</Link>
           <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/workflow" className="hover:text-white">Workflow</Link>
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
@@ -60,6 +61,7 @@ const MarketingLayout = ({ children }) => {
         <p>© 2025 LeaseWell. A product of Northridge Technologies LLC.</p>
         <div className="flex gap-6">
           <Link to="/login" className="hover:text-white">Sign in</Link>
+          <Link to="/" className="hover:text-white">Home</Link>
           <Link to="/features" className="hover:text-white">Features</Link>
           <Link to="/pricing" className="hover:text-white">Pricing</Link>
         </div>
