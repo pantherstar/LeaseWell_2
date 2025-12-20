@@ -33,10 +33,6 @@ const MarketingPage = () => {
     <MarketingLayout>
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-8 md:pt-16">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-400/30 rounded-full text-emerald-100 text-sm">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Built for modern property managers
-            </div>
             <h1 className="text-4xl md:text-6xl font-semibold leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
               Lease operations that feel <span className="text-emerald-300">effortless</span>.
             </h1>
@@ -49,9 +45,9 @@ const MarketingPage = () => {
                 Start managing
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <a href="#workflow" className="px-6 py-3 rounded-full border border-emerald-300/40 text-emerald-100 font-semibold hover:border-emerald-200">
+              <Link to="/workflow" className="px-6 py-3 rounded-full border border-emerald-300/40 text-emerald-100 font-semibold hover:border-emerald-200">
                 See how it works
-              </a>
+              </Link>
             </div>
             <div className="flex flex-wrap gap-6 text-sm text-emerald-100/70">
               <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-300" />No spreadsheets</div>
