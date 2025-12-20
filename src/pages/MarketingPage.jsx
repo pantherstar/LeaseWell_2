@@ -194,14 +194,26 @@ const MarketingPage = () => {
                   Simple plans that grow with your portfolio. Start free, then upgrade when you need automation.
                 </p>
               </div>
-              <div className="bg-[#0f1d1a] border border-emerald-500/20 rounded-3xl p-6 w-full lg:w-auto">
-                <p className="text-emerald-200 text-sm">Starter</p>
-                <p className="text-4xl font-semibold">$0</p>
-                <p className="text-emerald-100/70 text-sm mt-2">Up to 5 units</p>
-                <Link to="/login" className="mt-5 inline-flex items-center gap-2 px-5 py-3 bg-emerald-400 text-slate-900 font-semibold rounded-full hover:bg-emerald-300">
-                  Try it now
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="bg-[#0f1d1a] border border-emerald-500/20 rounded-3xl p-6 min-w-[220px]">
+                  <p className="text-emerald-200 text-sm">Starter</p>
+                  <p className="text-4xl font-semibold">$0</p>
+                  <p className="text-emerald-100/70 text-sm mt-2">Up to 3 units</p>
+                  <Link to="/login" className="mt-5 inline-flex items-center gap-2 px-5 py-3 bg-emerald-400 text-slate-900 font-semibold rounded-full hover:bg-emerald-300">
+                    Try it now
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+                <div className="bg-[#0f1d1a] border border-emerald-500/40 rounded-3xl p-6 min-w-[240px]">
+                  <p className="text-emerald-200 text-sm">Growth</p>
+                  <p className="text-4xl font-semibold">$29</p>
+                  <p className="text-emerald-100/70 text-sm mt-2">Per month · 4+ units</p>
+                  <p className="text-xs text-emerald-100/60 mt-2">Includes Stripe Connect payouts, ACH, and offline tracking.</p>
+                  <Link to="/login" className="mt-5 inline-flex items-center gap-2 px-5 py-3 bg-white text-slate-900 font-semibold rounded-full hover:bg-emerald-100">
+                    Upgrade
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
