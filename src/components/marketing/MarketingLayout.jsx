@@ -43,7 +43,7 @@ const MarketingLayout = ({ children }) => {
           </div>
           <div>
             <p className="text-lg font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>LeaseWell</p>
-            <p className="text-xs text-emerald-200/80">Property ops, done clean.</p>
+            <p className="text-xs text-emerald-200/80">Modern tools for modern rentals.</p>
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-4 text-sm text-emerald-100/80">
