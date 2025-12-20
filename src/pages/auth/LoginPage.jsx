@@ -15,6 +15,39 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const submitTimeoutRef = useRef(null);
+  const [rateLimitMessage, setRateLimitMessage] = useState('');
+
+  const attemptKey = 'leasewell_login_attempts';
+  const attemptWindowMs = 10 * 60 * 1000;
+  const attemptLimit = 5;
+
+  const pruneAttempts = () => {
+    const now = Date.now();
+    const attempts = JSON.parse(localStorage.getItem(attemptKey) || '[]');
+    const recent = attempts.filter((timestamp) => now - timestamp < attemptWindowMs);
+    localStorage.setItem(attemptKey, JSON.stringify(recent));
+    return recent;
+  };
+
+  const recordAttempt = () => {
+    const attempts = pruneAttempts();
+    attempts.push(Date.now());
+    localStorage.setItem(attemptKey, JSON.stringify(attempts));
+  };
+
+  const getRateLimitState = () => {
+    const attempts = pruneAttempts();
+    if (attempts.length < attemptLimit) {
+      return { blocked: false, remainingMs: 0 };
+    }
+    const earliest = Math.min(...attempts);
+    const remainingMs = Math.max(0, attemptWindowMs - (Date.now() - earliest));
+    return { blocked: true, remainingMs };
+  };
+
+  const resetAttempts = () => {
+    localStorage.removeItem(attemptKey);
+  };
 
   useEffect(() => {
     return () => {
@@ -28,6 +61,16 @@ const LoginPage = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setRateLimitMessage('');
+
+    if (!isSignUp) {
+      const { blocked, remainingMs } = getRateLimitState();
+      if (blocked) {
+        setLoading(false);
+        setRateLimitMessage(`Too many attempts. Try again in ${Math.ceil(remainingMs / 60000)} minutes.`);
+        return;
+      }
+    }
 
     if (submitTimeoutRef.current) {
       clearTimeout(submitTimeoutRef.current);
@@ -67,8 +110,10 @@ const LoginPage = () => {
 
         if (result.error) {
           setError(result.error);
+          recordAttempt();
         } else {
           // Successfully logged in, navigate to dashboard
+          resetAttempts();
           navigate('/dashboard');
         }
       }
@@ -114,9 +159,9 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
+            {(error || rateLimitMessage) && (
               <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
-                <p className="text-red-400 text-sm">{error}</p>
+                <p className="text-red-400 text-sm">{rateLimitMessage || error}</p>
               </div>
             )}
 
