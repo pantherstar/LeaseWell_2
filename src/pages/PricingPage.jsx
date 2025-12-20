@@ -13,6 +13,7 @@ const plans = [
       'Property + tenant dashboards',
       'Lease document vault',
       'Maintenance tracking',
+      'ACH + card payments',
       'Basic payment tracking'
     ]
   },
