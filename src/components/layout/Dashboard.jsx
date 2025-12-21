@@ -20,6 +20,7 @@ import { useProfile } from '../../hooks/useProfile';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useTenantLinks } from '../../hooks/useTenantLinks';
 import { sendTenantInvite } from '../../services/supabase/invites.service';
+import { revokeTenantAccess } from '../../services/supabase/tenantLinks.service';
 import { createConnectAccountLink } from '../../services/stripe/connect.service';
 import PropertyModal from '../properties/PropertyModal';
 import InviteTenantModal from '../tenants/InviteTenantModal';
@@ -50,7 +51,7 @@ const Dashboard = () => {
   const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
   const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
   const { profile, loading: profileLoading, error: profileError, refetch: refetchProfile } = useProfile();
-  const { links: tenantLinks } = useTenantLinks();
+  const { links: tenantLinks, refetch: refetchTenantLinks } = useTenantLinks();
   const {
     notifications,
     unreadCount,
@@ -321,6 +322,17 @@ const Dashboard = () => {
       return { success: false };
     }
     showNotification('Invite sent successfully!');
+    return { success: true };
+  };
+
+  const handleRemoveTenant = async ({ propertyId, tenantId }) => {
+    const result = await revokeTenantAccess({ propertyId, tenantId });
+    if (result.error) {
+      showNotification(`Error: ${result.error.message || result.error}`);
+      return { success: false };
+    }
+    showNotification('Tenant access removed.');
+    await refetchTenantLinks();
     return { success: true };
   };
 
@@ -660,13 +672,23 @@ const Dashboard = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (link) {
+                      const confirmed = window.confirm(`Remove ${tenantName || 'this tenant'} from ${property.address}?`);
+                      if (!confirmed) {
+                        return;
+                      }
+                      await handleRemoveTenant({ propertyId: property.id, tenantId: link.tenant_id });
+                      return;
+                    }
                     setInvitePropertyId(property.id);
                     setInviteModalOpen(true);
                   }}
-                  className="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                    link ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
+                  }`}
                 >
-                  {inviteLabel}
+                  {link ? 'Remove Tenant' : inviteLabel}
                 </button>
               </div>
               {property.description && <p className="text-sm text-slate-600 mt-4">{property.description}</p>}
