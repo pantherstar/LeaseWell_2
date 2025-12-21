@@ -1,28 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Camera, Send } from 'lucide-react';
 
-const MaintenanceModal = ({ isOpen, onClose, onSubmit }) => {
+const MaintenanceModal = ({ isOpen, onClose, onSubmit, properties = [] }) => {
+  const [propertyId, setPropertyId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [category, setCategory] = useState('general');
   const [photos, setPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen && properties.length === 1) {
+      setPropertyId(properties[0].id);
+    }
+  }, [isOpen, properties]);
+
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
-    const newPhotos = files.map(file => ({ name: file.name, url: URL.createObjectURL(file) }));
-    setPhotos([...photos, ...newPhotos]);
+    const newPhotos = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+    setPhotos((prev) => [...prev, ...newPhotos]);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
-      onSubmit({ title, description, priority, photos });
-      setSubmitting(false);
-      setTitle(''); setDescription(''); setPriority('medium'); setPhotos([]);
+    const result = await onSubmit({
+      propertyId,
+      title,
+      description,
+      priority,
+      category,
+      photos: photos.map((photo) => photo.file)
+    });
+    setSubmitting(false);
+    if (result?.success) {
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setCategory('general');
+      setPhotos([]);
+      setPropertyId('');
       onClose();
-    }, 1500);
+    }
   };
 
   if (!isOpen) return null;
@@ -42,10 +62,47 @@ const MaintenanceModal = ({ isOpen, onClose, onSubmit }) => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Property</label>
+            <select
+              value={propertyId}
+              onChange={(e) => setPropertyId(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+              required
+            >
+              <option value="" disabled>Select a property</option>
+              {properties.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {property.address}{property.unit_number ? `, ${property.unit_number}` : ''} ({property.city})
+                </option>
+              ))}
+            </select>
+            {properties.length === 0 && (
+              <p className="text-xs text-slate-500 mt-2">Add a property before submitting requests.</p>
+            )}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Issue Title</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Leaking faucet in bathroom"
               className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500" required />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="general">General</option>
+              <option value="plumbing">Plumbing</option>
+              <option value="electrical">Electrical</option>
+              <option value="hvac">HVAC</option>
+              <option value="appliance">Appliance</option>
+              <option value="security">Security</option>
+              <option value="exterior">Exterior</option>
+            </select>
           </div>
 
           <div>
@@ -95,7 +152,7 @@ const MaintenanceModal = ({ isOpen, onClose, onSubmit }) => {
             )}
           </div>
 
-          <button type="submit" disabled={submitting}
+          <button type="submit" disabled={submitting || !propertyId}
             className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Submitting...</>)
               : (<><Send className="w-5 h-5" />Submit Request</>)}

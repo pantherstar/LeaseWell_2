@@ -52,7 +52,7 @@ const Dashboard = () => {
 
   // Use custom hooks for data fetching
   const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
-  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, refetch: refetchMaintenance } = useMaintenance();
+  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance } = useMaintenance();
   const { documents, loading: documentsLoading, error: documentsError, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
   const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
   const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
@@ -291,21 +291,47 @@ const Dashboard = () => {
   };
 
   const handleMaintenanceSubmit = async (data) => {
-    const result = await createMaintenance({
+    const createResult = await createMaintenance({
       property_id: data.propertyId,
       title: data.title,
       description: data.description,
       priority: data.priority || 'medium',
       category: data.category,
-      photos: data.photos || []
+      photos: []
     });
 
-    if (result.success) {
-      showNotification('Maintenance request submitted!');
-      setMaintenanceModalOpen(false);
-    } else {
-      showNotification(`Error: ${result.error}`);
+    if (!createResult.success) {
+      showNotification(`Error: ${createResult.error}`);
+      return createResult;
     }
+
+    let uploadedUrls = [];
+    if (data.photos?.length) {
+      const { uploadMaintenancePhoto } = await import('../../services/supabase/database.service');
+      const uploads = await Promise.all(
+        data.photos.map(async (file) => {
+          const { data: uploadData, error: uploadError } = await uploadMaintenancePhoto(file, createResult.data.id);
+          if (uploadError) {
+            return { error: uploadError.message || 'Upload failed' };
+          }
+          return { url: uploadData.publicUrl };
+        })
+      );
+      const errors = uploads.filter((item) => item.error);
+      if (errors.length) {
+        showNotification(`Warning: ${errors[0].error}`);
+      }
+      uploadedUrls = uploads.filter((item) => item.url).map((item) => item.url);
+    }
+
+    if (uploadedUrls.length) {
+      await updateMaintenance(createResult.data.id, { photos: uploadedUrls });
+    }
+
+    showNotification('Maintenance request submitted!');
+    setMaintenanceModalOpen(false);
+    await refetchMaintenance();
+    return { success: true };
   };
 
   const handleDocumentUpload = async (data) => {
@@ -862,17 +888,40 @@ const Dashboard = () => {
                     <h3 className="font-semibold text-slate-800">{request.title}</h3>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${request.priority === 'high' ? 'bg-red-100 text-red-600' : request.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>{request.priority}</span>
                   </div>
-                  <p className="text-slate-500 text-sm mt-1">{request.property}</p>
+                  <p className="text-slate-500 text-sm mt-1">{request.property?.address || request.property || 'Property'}</p>
                   <p className="text-slate-600 mt-2">{request.description}</p>
                   <div className="flex items-center gap-4 mt-3 text-sm text-slate-500">
-                    <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{request.date}</span>
-                    {userType === 'landlord' && <span className="flex items-center gap-1"><User className="w-4 h-4" />{request.tenant}</span>}
+                    <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{request.created_at ? new Date(request.created_at).toLocaleDateString() : '—'}</span>
+                    {userType === 'landlord' && <span className="flex items-center gap-1"><User className="w-4 h-4" />{request.tenant?.full_name || request.tenant || 'Tenant'}</span>}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1.5 rounded-xl text-sm font-medium capitalize ${request.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : request.status === 'in-progress' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>{request.status === 'in-progress' ? 'In Progress' : request.status}</span>
-                {userType === 'landlord' && <button className="p-2 hover:bg-slate-100 rounded-lg"><MoreVertical className="w-5 h-5 text-slate-400" /></button>}
+                {userType === 'landlord' ? (
+                  <select
+                    value={request.status || 'pending'}
+                    onChange={async (e) => {
+                      const nextStatus = e.target.value;
+                      const result = await updateMaintenance(request.id, { status: nextStatus });
+                      if (result.success) {
+                        showNotification('Status updated.');
+                        await refetchMaintenance();
+                      } else {
+                        showNotification(`Error: ${result.error}`);
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                ) : (
+                  <span className={`px-3 py-1.5 rounded-xl text-sm font-medium capitalize ${request.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : request.status === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
+                    {request.status === 'in_progress' ? 'In Progress' : request.status}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1138,7 +1187,12 @@ const Dashboard = () => {
         onSubmit={handleOfflinePayment}
         defaultAmount={leases[0]?.monthly_rent ?? leases[0]?.rent ?? ''}
       />
-      <MaintenanceModal isOpen={maintenanceModalOpen} onClose={() => setMaintenanceModalOpen(false)} onSubmit={handleMaintenanceSubmit} />
+      <MaintenanceModal
+        isOpen={maintenanceModalOpen}
+        onClose={() => setMaintenanceModalOpen(false)}
+        onSubmit={handleMaintenanceSubmit}
+        properties={properties}
+      />
       <DocumentModal isOpen={documentModalOpen} onClose={() => setDocumentModalOpen(false)} onUpload={handleDocumentUpload} properties={properties} />
       <PropertyModal isOpen={propertyModalOpen} onClose={() => setPropertyModalOpen(false)} onCreate={handleCreateProperty} />
       <LeaseModal
