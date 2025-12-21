@@ -54,7 +54,18 @@ const MarketingLayout = ({ children }) => {
       <main className="relative z-10 px-6 md:px-12 pb-20">{children}</main>
 
       <footer className="relative z-10 px-6 md:px-12 py-10 border-t border-white/10 text-emerald-100/60 text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <p>© 2025 LeaseWell. A product of Northridge Technologies LLC.</p>
+        <p>
+          © 2025 LeaseWell. A product of{' '}
+          <a
+            href="https://northridge.tech"
+            target="_blank"
+            rel="noreferrer"
+            className="text-emerald-200 hover:text-emerald-100 underline-offset-4 hover:underline"
+          >
+            Northridge Technologies LLC
+          </a>
+          .
+        </p>
         <div className="flex gap-6">
           <Link to="/login" className="hover:text-white">Sign in</Link>
           <Link to="/" className="hover:text-white">Home</Link>
