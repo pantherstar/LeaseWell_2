@@ -18,6 +18,19 @@ const ResetPasswordPage = () => {
 
     const checkSession = async () => {
       try {
+        const hash = window.location.hash.replace(/^#/, '');
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        if (accessToken && refreshToken && type === 'recovery') {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+        }
+
         const { data } = await supabase.auth.getSession();
         if (!mounted) return;
         if (!data?.session) {
