@@ -48,7 +48,7 @@ const Dashboard = () => {
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  const faviconUrl = '/favicon.png';
+  const faviconUrl = '/favicon.svg';
 
   // Use custom hooks for data fetching
   const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
@@ -724,7 +724,18 @@ const Dashboard = () => {
           {properties.map((property) => {
             const link = tenantLinks.find((entry) => entry.property_id === property.id && entry.status !== 'removed');
             const tenantName = link?.tenant?.full_name || link?.tenant?.email;
-            const inviteLabel = link ? 'Change Tenant' : 'Invite Tenant';
+            const handleTenantAction = async () => {
+              if (link) {
+                const confirmed = window.confirm(`Remove ${tenantName || 'this tenant'} from ${property.address}?`);
+                if (!confirmed) {
+                  return;
+                }
+                await handleRemoveTenant({ propertyId: property.id, tenantId: link.tenant_id });
+                return;
+              }
+              setInvitePropertyId(property.id);
+              setInviteModalOpen(true);
+            };
             return (
             <div key={property.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-start justify-between gap-4">
@@ -737,9 +748,21 @@ const Dashboard = () => {
                     {property.bathrooms != null && <span>{property.bathrooms} ba</span>}
                     {property.square_feet != null && <span>{property.square_feet} sqft</span>}
                   </div>
-                  {tenantName && (
-                    <p className="text-sm text-emerald-700 mt-3">Tenant: {tenantName}</p>
-                  )}
+                  <div className="mt-3 flex items-center gap-3 text-sm">
+                    {tenantName ? (
+                      <span className="text-emerald-700">Tenant: {tenantName}</span>
+                    ) : (
+                      <>
+                        <span className="text-slate-500">No tenant yet.</span>
+                        <button
+                          onClick={handleTenantAction}
+                          className="text-xs font-medium text-amber-600 hover:text-amber-700"
+                        >
+                          Invite tenant
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
@@ -747,25 +770,6 @@ const Dashboard = () => {
                     className="px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     Add Lease
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (link) {
-                        const confirmed = window.confirm(`Remove ${tenantName || 'this tenant'} from ${property.address}?`);
-                        if (!confirmed) {
-                          return;
-                        }
-                        await handleRemoveTenant({ propertyId: property.id, tenantId: link.tenant_id });
-                        return;
-                      }
-                      setInvitePropertyId(property.id);
-                      setInviteModalOpen(true);
-                    }}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                      link ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
-                    }`}
-                  >
-                    {link ? 'Remove Tenant' : inviteLabel}
                   </button>
                 </div>
               </div>
