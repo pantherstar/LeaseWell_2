@@ -31,3 +31,22 @@ export const createLeaseByEmail = async ({
     return { data: null, error };
   }
 };
+
+export const requestLease = async ({ propertyId, message }) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('request-lease', {
+      body: {
+        propertyId,
+        message
+      }
+    });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};

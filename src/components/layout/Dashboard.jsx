@@ -18,10 +18,13 @@ import { usePayments, usePaymentStats } from '../../hooks/usePayments';
 import { useProperties } from '../../hooks/useProperties';
 import { useProfile } from '../../hooks/useProfile';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useTenantLinks } from '../../hooks/useTenantLinks';
 import { sendTenantInvite } from '../../services/supabase/invites.service';
 import { createConnectAccountLink } from '../../services/stripe/connect.service';
 import PropertyModal from '../properties/PropertyModal';
 import InviteTenantModal from '../tenants/InviteTenantModal';
+import LeaseRequestModal from '../leases/LeaseRequestModal';
+import { requestLease } from '../../services/supabase/leases.service';
 
 const Dashboard = () => {
   const { userType, signOut } = useAuth();
@@ -35,6 +38,7 @@ const Dashboard = () => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [invitePropertyId, setInvitePropertyId] = useState('');
   const [leaseModalOpen, setLeaseModalOpen] = useState(false);
+  const [leaseRequestModalOpen, setLeaseRequestModalOpen] = useState(false);
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -46,6 +50,7 @@ const Dashboard = () => {
   const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
   const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
   const { profile, loading: profileLoading, error: profileError, refetch: refetchProfile } = useProfile();
+  const { links: tenantLinks } = useTenantLinks();
   const {
     notifications,
     unreadCount,
@@ -275,7 +280,8 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Document uploaded successfully!');
     } else {
-      showNotification(`Error: ${result.error}`);
+      const message = result.error?.message || result.error || 'Upload failed';
+      showNotification(`Error: ${message}`);
     }
     return result;
   };
@@ -289,6 +295,23 @@ const Dashboard = () => {
       showNotification(`Error: ${result.error}`);
     }
     return result;
+  };
+
+  const handleRequestLease = async ({ message }) => {
+    const propertyId = properties[0]?.id;
+    if (!propertyId) {
+      showNotification('No property found for your account yet.');
+      return { success: false };
+    }
+
+    const result = await requestLease({ propertyId, message });
+    if (result.error) {
+      showNotification(`Error: ${result.error.message || result.error}`);
+      return { success: false, error: result.error };
+    }
+
+    showNotification('Lease request sent to your landlord.');
+    return { success: true };
   };
 
   const handleInviteTenant = async ({ propertyId, tenantEmail, tenantName }) => {
@@ -445,6 +468,12 @@ const Dashboard = () => {
             <p className="text-slate-500 text-sm">
               Wait for your landlord to activate the lease. If this takes too long, reach out to them to finalize setup.
             </p>
+            <button
+              onClick={() => setLeaseRequestModalOpen(true)}
+              className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
+            >
+              Request Lease
+            </button>
           </div>
         </div>
       );
@@ -513,18 +542,27 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h2 className="text-2xl font-bold text-slate-800">Lease Management</h2><p className="text-slate-500">Track all your property leases</p></div>
-        <button
-          onClick={() => {
-            if (properties.length === 0) {
-              showNotification('Add a property before creating a lease.');
-              return;
-            }
-            setLeaseModalOpen(true);
-          }}
-          className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
-        >
-          <Plus className="w-5 h-5" />Add Lease
-        </button>
+        {userType === 'landlord' ? (
+          <button
+            onClick={() => {
+              if (properties.length === 0) {
+                showNotification('Add a property before creating a lease.');
+                return;
+              }
+              setLeaseModalOpen(true);
+            }}
+            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
+          >
+            <Plus className="w-5 h-5" />Add Lease
+          </button>
+        ) : (
+          <button
+            onClick={() => setLeaseRequestModalOpen(true)}
+            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
+          >
+            <Plus className="w-5 h-5" />Request Lease
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -601,7 +639,11 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {properties.map((property) => (
+          {properties.map((property) => {
+            const link = tenantLinks.find((entry) => entry.property_id === property.id && entry.status !== 'removed');
+            const tenantName = link?.tenant?.full_name || link?.tenant?.email;
+            const inviteLabel = link ? 'Change Tenant' : 'Invite Tenant';
+            return (
             <div key={property.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-start justify-between">
                 <div>
@@ -613,6 +655,9 @@ const Dashboard = () => {
                     {property.bathrooms != null && <span>{property.bathrooms} ba</span>}
                     {property.square_feet != null && <span>{property.square_feet} sqft</span>}
                   </div>
+                  {tenantName && (
+                    <p className="text-sm text-emerald-700 mt-3">Tenant: {tenantName}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -621,12 +666,12 @@ const Dashboard = () => {
                   }}
                   className="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium"
                 >
-                  Invite Tenant
+                  {inviteLabel}
                 </button>
               </div>
               {property.description && <p className="text-sm text-slate-600 mt-4">{property.description}</p>}
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>
@@ -937,6 +982,12 @@ const Dashboard = () => {
         onClose={() => setLeaseModalOpen(false)}
         onCreate={handleCreateLease}
         properties={properties}
+      />
+      <LeaseRequestModal
+        isOpen={leaseRequestModalOpen}
+        onClose={() => setLeaseRequestModalOpen(false)}
+        onSubmit={handleRequestLease}
+        property={properties[0]}
       />
       <InviteTenantModal
         isOpen={inviteModalOpen}

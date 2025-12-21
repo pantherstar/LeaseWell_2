@@ -941,6 +941,38 @@ export const deleteNotification = async (notificationId) => {
 };
 
 // =====================================================
+// TENANT PROPERTY LINKS
+// =====================================================
+
+/**
+ * Get tenant property links for the current user (landlord or tenant)
+ * @returns {Promise<{data: Array|null, error: Error|null}>}
+ */
+export const getTenantPropertyLinks = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: new Error('Not authenticated') };
+
+    const { data, error } = await supabase
+      .from('tenant_properties')
+      .select(`
+        id,
+        property_id,
+        tenant_id,
+        landlord_id,
+        status,
+        created_at,
+        tenant:profiles!tenant_id(id, full_name, email)
+      `)
+      .or(`tenant_id.eq.${user.id},landlord_id.eq.${user.id}`);
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+// =====================================================
 // STORAGE - MAINTENANCE PHOTOS
 // =====================================================
 
