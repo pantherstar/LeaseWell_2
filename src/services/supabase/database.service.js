@@ -69,6 +69,30 @@ export const getProperties = async () => {
 
     const { data: profile } = await getProfile();
 
+    if (profile?.role === 'tenant') {
+      const { data, error } = await supabase
+        .from('tenant_properties')
+        .select(`
+          status,
+          property:properties(
+            *,
+            landlord:profiles!landlord_id(id, full_name, email, phone)
+          )
+        `)
+        .eq('tenant_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      const properties = (data || [])
+        .map((entry) => entry.property)
+        .filter(Boolean);
+
+      return { data: properties, error: null };
+    }
+
     let query = supabase
       .from('properties')
       .select(`
@@ -77,7 +101,6 @@ export const getProperties = async () => {
       `)
       .order('created_at', { ascending: false });
 
-    // RLS will handle filtering, but we can optimize the query
     if (profile?.role === 'landlord') {
       query = query.eq('landlord_id', user.id);
     }

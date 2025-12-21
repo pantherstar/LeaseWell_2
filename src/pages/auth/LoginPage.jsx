@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Key, Mail, Home, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logoMark from '../../assets/leasewell-mark.png';
+import { acceptTenantInvite } from '../../services/supabase/invites.service';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const submitTimeoutRef = useRef(null);
   const [rateLimitMessage, setRateLimitMessage] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
 
   const attemptKey = 'leasewell_login_attempts';
   const attemptWindowMs = 3 * 60 * 1000;
@@ -51,6 +53,14 @@ const LoginPage = () => {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('invite');
+    if (token) {
+      setInviteToken(token);
+      setUserType('tenant');
+      setIsSignUp(true);
+    }
+
     return () => {
       if (submitTimeoutRef.current) {
         clearTimeout(submitTimeoutRef.current);
@@ -102,6 +112,14 @@ const LoginPage = () => {
         if (result.error) {
           setError(result.error);
         } else {
+          if (inviteToken) {
+            const inviteResult = await acceptTenantInvite({ token: inviteToken });
+            if (inviteResult.error) {
+              setError(inviteResult.error.message || 'Unable to accept invite.');
+              setLoading(false);
+              return;
+            }
+          }
           // Successfully signed up, navigate to dashboard
           navigate('/dashboard');
         }
@@ -113,6 +131,14 @@ const LoginPage = () => {
           setError(result.error);
           recordAttempt();
         } else {
+          if (inviteToken) {
+            const inviteResult = await acceptTenantInvite({ token: inviteToken });
+            if (inviteResult.error) {
+              setError(inviteResult.error.message || 'Unable to accept invite.');
+              setLoading(false);
+              return;
+            }
+          }
           // Successfully logged in, navigate to dashboard
           resetAttempts();
           navigate('/dashboard');
@@ -147,8 +173,9 @@ const LoginPage = () => {
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
           <div className="flex bg-[#101f1b] rounded-xl p-1 mb-8">
             <button onClick={() => setUserType('landlord')}
+              disabled={Boolean(inviteToken)}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                userType === 'landlord' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-emerald-100/60 hover:text-white'}`}>
+                userType === 'landlord' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg' : 'text-emerald-100/60 hover:text-white'} ${inviteToken ? 'opacity-40 cursor-not-allowed' : ''}`}>
               <Key className="w-4 h-4" />Landlord
             </button>
             <button onClick={() => setUserType('tenant')}
@@ -159,6 +186,13 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {inviteToken && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                <p className="text-emerald-100 text-sm">
+                  You&apos;re joining a property. Create a tenant account or sign in to continue.
+                </p>
+              </div>
+            )}
             {(error || rateLimitMessage) && (
               <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
                 <p className="text-red-200 text-sm">{rateLimitMessage || error}</p>
