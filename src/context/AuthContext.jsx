@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const inactivityTimerRef = useRef(null);
-  const inactivityLimitMs = 15 * 60 * 1000;
+  const inactivityLimitMs = 10 * 60 * 1000;
 
   const resetInactivityTimer = () => {
     if (inactivityTimerRef.current) {
@@ -75,8 +75,6 @@ export const AuthProvider = ({ children }) => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         resetInactivityTimer();
-      } else if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
       }
     };
 
