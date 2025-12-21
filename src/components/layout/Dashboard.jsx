@@ -48,7 +48,7 @@ const Dashboard = () => {
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  const faviconUrl = '/favicon.svg';
+  const faviconUrl = '/favicon.png?v=2';
 
   // Use custom hooks for data fetching
   const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
