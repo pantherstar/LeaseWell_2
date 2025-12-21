@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/auth/LoginPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import MarketingPage from './pages/MarketingPage';
 import FeaturesPage from './pages/FeaturesPage';
 import WorkflowPage from './pages/WorkflowPage';
@@ -24,6 +25,7 @@ function AppRoutes() {
           )
         }
       />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/workflow" element={<WorkflowPage />} />
