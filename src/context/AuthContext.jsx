@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const inactivityTimerRef = useRef(null);
+  const inactivityLimitMs = 15 * 60 * 1000;
 
   const resetInactivityTimer = () => {
     if (inactivityTimerRef.current) {
@@ -33,7 +34,7 @@ export const AuthProvider = ({ children }) => {
         setUserType(null);
         setSession(null);
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, inactivityLimitMs);
   };
 
   useEffect(() => {
@@ -71,12 +72,21 @@ export const AuthProvider = ({ children }) => {
 
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     const handleActivity = () => resetInactivityTimer();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        resetInactivityTimer();
+      } else if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
 
     events.forEach((event) => window.addEventListener(event, handleActivity));
+    document.addEventListener('visibilitychange', handleVisibility);
     resetInactivityTimer();
 
     return () => {
       events.forEach((event) => window.removeEventListener(event, handleActivity));
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }

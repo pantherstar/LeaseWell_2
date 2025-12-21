@@ -17,6 +17,7 @@ import { useDocuments } from '../../hooks/useDocuments';
 import { usePayments, usePaymentStats } from '../../hooks/usePayments';
 import { useProperties } from '../../hooks/useProperties';
 import { useProfile } from '../../hooks/useProfile';
+import { useNotifications } from '../../hooks/useNotifications';
 import { sendTenantInvite } from '../../services/supabase/invites.service';
 import { createConnectAccountLink } from '../../services/stripe/connect.service';
 import PropertyModal from '../properties/PropertyModal';
@@ -45,6 +46,12 @@ const Dashboard = () => {
   const { payments, loading: paymentsLoading, update: updatePayment, refetch: refetchPayments } = usePayments();
   const { properties, loading: propertiesLoading, create: createProperty, refetch: refetchProperties } = useProperties();
   const { profile, loading: profileLoading, refetch: refetchProfile } = useProfile();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead: markNotificationAsRead,
+    markAllAsRead
+  } = useNotifications();
   const paymentStats = usePaymentStats(payments);
 
   useEffect(() => {
@@ -811,11 +818,41 @@ const Dashboard = () => {
                   className="p-2 hover:bg-slate-100 rounded-lg relative"
                 >
                   <Bell className="w-5 h-5 text-slate-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
+                  )}
                 </button>
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-100 rounded-xl shadow-lg p-4 text-sm text-slate-600">
-                    <p className="font-semibold text-slate-800 mb-2">Alerts</p>
-                    <p>No new alerts yet.</p>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-100 rounded-xl shadow-lg p-4 text-sm text-slate-600">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-semibold text-slate-800">Alerts</p>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={() => markAllAsRead()}
+                          className="text-xs text-emerald-600 hover:text-emerald-700"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <p>No new alerts yet.</p>
+                    ) : (
+                      <div className="space-y-3 max-h-72 overflow-auto">
+                        {notifications.map((notif) => (
+                          <button
+                            key={notif.id}
+                            onClick={() => markNotificationAsRead(notif.id)}
+                            className={`w-full text-left p-3 rounded-lg border transition ${
+                              notif.read ? 'border-slate-100 bg-slate-50' : 'border-emerald-200 bg-emerald-50/40'
+                            }`}
+                          >
+                            <p className="font-medium text-slate-800">{notif.title}</p>
+                            <p className="text-xs text-slate-500 mt-1">{notif.message}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
