@@ -354,17 +354,52 @@ const Dashboard = () => {
   // Tenant Overview
   const TenantOverview = () => {
     const tenantLease = leases[0];
+    const tenantProperty = properties[0];
+    const propertyLabel = tenantLease?.property?.address || tenantLease?.property || tenantProperty?.address || 'Your Property';
+    const cityState = tenantLease?.property
+      ? `${tenantLease.property.city || ''} ${tenantLease.property.state || ''} ${tenantLease.property.zip_code || ''}`.trim()
+      : tenantProperty
+        ? `${tenantProperty.city || ''} ${tenantProperty.state || ''} ${tenantProperty.zip_code || ''}`.trim()
+        : '';
+    const hasLease = Boolean(tenantLease);
+
+    if (!hasLease) {
+      return (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
+            <div className="relative">
+              <p className="text-slate-400 text-sm">Invite Accepted</p>
+              <h2 className="text-2xl font-bold mt-2">{propertyLabel}</h2>
+              {cityState && <p className="text-slate-300 mt-2">{cityState}</p>}
+              <p className="text-slate-300 mt-4">
+                Your landlord will add your lease details shortly. You’ll see rent and documents here once the lease is created.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h3 className="font-semibold text-slate-800 mb-2">What’s next?</h3>
+            <p className="text-slate-500 text-sm">
+              Wait for your landlord to activate the lease. If this takes too long, reach out to them to finalize setup.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl" />
           <div className="relative">
             <p className="text-slate-400 text-sm">Your Current Residence</p>
-            <h2 className="text-2xl font-bold mt-2">{tenantLease.property}</h2>
+            <h2 className="text-2xl font-bold mt-2">{propertyLabel}</h2>
+            {cityState && <p className="text-slate-300 mt-2">{cityState}</p>}
             <div className="flex flex-wrap gap-6 mt-6">
-              <div><p className="text-slate-400 text-sm">Monthly Rent</p><p className="text-xl font-semibold text-emerald-400">${tenantLease.rent.toLocaleString()}</p></div>
-              <div><p className="text-slate-400 text-sm">Lease Ends</p><p className="text-xl font-semibold">{new Date(tenantLease.endDate).toLocaleDateString()}</p></div>
-              <div><p className="text-slate-400 text-sm">Days Remaining</p><p className="text-xl font-semibold">{tenantLease.daysRemaining}</p></div>
+              <div><p className="text-slate-400 text-sm">Monthly Rent</p><p className="text-xl font-semibold text-emerald-400">${Number(tenantLease.monthly_rent ?? tenantLease.rent ?? 0).toLocaleString()}</p></div>
+              <div><p className="text-slate-400 text-sm">Lease Ends</p><p className="text-xl font-semibold">{new Date(tenantLease.end_date ?? tenantLease.endDate).toLocaleDateString()}</p></div>
+              <div><p className="text-slate-400 text-sm">Days Remaining</p><p className="text-xl font-semibold">{tenantLease.daysRemaining ?? Math.ceil((new Date(tenantLease.end_date ?? tenantLease.endDate) - new Date()) / (1000 * 60 * 60 * 24))}</p></div>
             </div>
           </div>
         </div>
@@ -629,12 +664,32 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-emerald-100">Next Payment Due</p>
-              <p className="text-3xl font-bold mt-1">${(leases[0]?.monthly_rent ?? leases[0]?.rent ?? 0).toLocaleString()}</p>
-              <p className="text-emerald-100 mt-2">Due: January 1, 2025</p>
+              <p className="text-3xl font-bold mt-1">
+                ${Number(leases[0]?.monthly_rent ?? leases[0]?.rent ?? 0).toLocaleString()}
+              </p>
+              <p className="text-emerald-100 mt-2">
+                {leases[0]?.id ? 'Due: January 1, 2025' : 'No active lease yet'}
+              </p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => { setSelectedLease(leases[0]); setPaymentModalOpen(true); }} className="px-6 py-3 bg-white text-emerald-600 font-semibold rounded-xl hover:bg-emerald-50">Pay Now</button>
-              <button onClick={() => setOfflinePaymentModalOpen(true)} className="px-6 py-3 bg-emerald-800 text-white font-semibold rounded-xl hover:bg-emerald-700">Record Zelle/Cash</button>
+              <button
+                onClick={() => { setSelectedLease(leases[0]); setPaymentModalOpen(true); }}
+                disabled={!leases[0]?.id}
+                className={`px-6 py-3 font-semibold rounded-xl ${
+                  leases[0]?.id ? 'bg-white text-emerald-600 hover:bg-emerald-50' : 'bg-white/40 text-emerald-200 cursor-not-allowed'
+                }`}
+              >
+                Pay Now
+              </button>
+              <button
+                onClick={() => setOfflinePaymentModalOpen(true)}
+                disabled={!leases[0]?.id}
+                className={`px-6 py-3 font-semibold rounded-xl ${
+                  leases[0]?.id ? 'bg-emerald-800 text-white hover:bg-emerald-700' : 'bg-emerald-900/40 text-emerald-200 cursor-not-allowed'
+                }`}
+              >
+                Record Zelle/Cash
+              </button>
             </div>
           </div>
         </div>
