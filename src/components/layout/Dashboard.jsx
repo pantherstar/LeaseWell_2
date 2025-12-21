@@ -46,6 +46,7 @@ const Dashboard = () => {
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
+  const faviconUrl = '/favicon.png';
 
   // Use custom hooks for data fetching
   const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
@@ -75,6 +76,12 @@ const Dashboard = () => {
       window.history.replaceState({}, '', newUrl);
     }
   }, [refetchProfile]);
+
+  useEffect(() => {
+    if (userType === 'landlord' && activeTab === 'leases') {
+      setActiveTab('properties');
+    }
+  }, [userType, activeTab]);
 
   const showNotification = (message) => {
     setNotification(message);
@@ -108,8 +115,8 @@ const Dashboard = () => {
         <div className="absolute -top-24 -right-20 w-96 h-96 bg-emerald-500/20 blur-[120px] rounded-full" />
         <div className="absolute bottom-0 -left-24 w-96 h-96 bg-amber-400/15 blur-[120px] rounded-full" />
         <div className="text-center relative z-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
-            <Building2 className="w-8 h-8 text-white animate-pulse" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
+            <img src={faviconUrl} alt="LeaseWell" className="w-10 h-10" />
           </div>
           <h2 className="text-xl font-semibold text-white mb-2">Loading LeaseWell...</h2>
           <div className="w-48 h-1 bg-emerald-900/40 rounded-full overflow-hidden mx-auto">
