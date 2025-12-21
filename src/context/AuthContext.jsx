@@ -195,6 +195,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const resetPassword = async (email) => {
+    try {
+      await authService.resetPassword(email);
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   // Mock login for when Supabase is not configured
   const mockLogin = (type) => {
     setUser({ email: 'demo@leasewell.com', profile: { role: type } });
@@ -210,6 +219,7 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signOut,
     signInWithGoogle,
+    resetPassword,
     mockLogin, // For demo purposes when Supabase is not configured
     isAuthenticated: !!user,
   };

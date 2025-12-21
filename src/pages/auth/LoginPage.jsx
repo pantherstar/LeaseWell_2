@@ -6,7 +6,7 @@ import { acceptTenantInvite } from '../../services/supabase/invites.service';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, mockLogin } = useAuth();
+  const { signIn, signUp, mockLogin, resetPassword } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [userType, setUserType] = useState('landlord');
   const [email, setEmail] = useState('');
@@ -18,6 +18,8 @@ const LoginPage = () => {
   const submitTimeoutRef = useRef(null);
   const [rateLimitMessage, setRateLimitMessage] = useState('');
   const [inviteToken, setInviteToken] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const attemptKey = 'leasewell_login_attempts';
   const attemptWindowMs = 3 * 60 * 1000;
@@ -70,6 +72,7 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResetMessage('');
     setLoading(true);
     setRateLimitMessage('');
 
@@ -153,6 +156,31 @@ const LoginPage = () => {
     }
   };
 
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+    setError('');
+    setResetMessage('');
+
+    if (!email) {
+      setError('Enter your email address to reset your password.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const result = await resetPassword(email);
+      if (result?.error) {
+        setError(result.error.message || 'Unable to send reset email.');
+      } else {
+        setResetMessage('Password reset email sent. Check your inbox.');
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to send reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
@@ -195,6 +223,11 @@ const LoginPage = () => {
             {(error || rateLimitMessage) && (
               <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl">
                 <p className="text-red-200 text-sm">{rateLimitMessage || error}</p>
+              </div>
+            )}
+            {resetMessage && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/40 rounded-xl">
+                <p className="text-emerald-100 text-sm">{resetMessage}</p>
               </div>
             )}
 
@@ -243,7 +276,14 @@ const LoginPage = () => {
                 <label className="flex items-center gap-2 text-emerald-100/60 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 rounded border-emerald-500/40 text-emerald-500 bg-[#101f1b]" />Remember me
                 </label>
-                <a href="#" className="text-emerald-300 hover:text-emerald-200">Forgot password?</a>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? 'Sending...' : 'Forgot password?'}
+                </button>
               </div>
             )}
 
