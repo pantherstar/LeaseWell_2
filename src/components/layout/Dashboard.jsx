@@ -40,12 +40,12 @@ const Dashboard = () => {
   const [notification, setNotification] = useState(null);
 
   // Use custom hooks for data fetching
-  const { leases, loading: leasesLoading, create: createLease, refetch: refetchLeases } = useLeases();
-  const { requests: maintenanceRequests, loading: maintenanceLoading, create: createMaintenance, refetch: refetchMaintenance } = useMaintenance();
-  const { documents, loading: documentsLoading, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
-  const { payments, loading: paymentsLoading, update: updatePayment, refetch: refetchPayments } = usePayments();
-  const { properties, loading: propertiesLoading, create: createProperty, refetch: refetchProperties } = useProperties();
-  const { profile, loading: profileLoading, refetch: refetchProfile } = useProfile();
+  const { leases, loading: leasesLoading, error: leasesError, create: createLease, refetch: refetchLeases } = useLeases();
+  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, refetch: refetchMaintenance } = useMaintenance();
+  const { documents, loading: documentsLoading, error: documentsError, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
+  const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
+  const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
+  const { profile, loading: profileLoading, error: profileError, refetch: refetchProfile } = useProfile();
   const {
     notifications,
     unreadCount,
@@ -53,6 +53,7 @@ const Dashboard = () => {
     markAllAsRead
   } = useNotifications();
   const paymentStats = usePaymentStats(payments);
+  const [forceReady, setForceReady] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -74,6 +75,16 @@ const Dashboard = () => {
   // Only show loading for initial load, not if all are still loading (which might indicate an error)
   const isLoading = leasesLoading && maintenanceLoading && documentsLoading && paymentsLoading && propertiesLoading && profileLoading;
 
+  useEffect(() => {
+    if (!isLoading) {
+      setForceReady(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setForceReady(true), 10000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   // Debug: Log loading states
   console.log('Dashboard loading states:', {
     leasesLoading,
@@ -85,7 +96,7 @@ const Dashboard = () => {
     userType
   });
 
-  if (isLoading) {
+  if (isLoading && !forceReady) {
     return (
       <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
@@ -100,6 +111,49 @@ const Dashboard = () => {
             <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-pulse" style={{ width: '60%' }}></div>
           </div>
           <p className="text-emerald-100/60 text-sm mt-4">If this takes too long, check your browser console for errors</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading && forceReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-lg w-full bg-white border border-slate-100 shadow-sm rounded-2xl p-6 text-center">
+          <h2 className="text-xl font-semibold text-slate-800">We’re still loading your dashboard</h2>
+          <p className="text-slate-500 text-sm mt-2">
+            Some data is taking too long to load. You can retry or refresh the page.
+          </p>
+          <div className="mt-4 text-left text-xs text-slate-500 space-y-1">
+            {leasesError && <p>Leases: {leasesError}</p>}
+            {propertiesError && <p>Properties: {propertiesError}</p>}
+            {paymentsError && <p>Payments: {paymentsError}</p>}
+            {documentsError && <p>Documents: {documentsError}</p>}
+            {maintenanceError && <p>Maintenance: {maintenanceError}</p>}
+            {profileError && <p>Profile: {profileError}</p>}
+          </div>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                refetchLeases();
+                refetchMaintenance();
+                refetchDocuments();
+                refetchPayments();
+                refetchProperties();
+                refetchProfile();
+                setForceReady(false);
+              }}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
     );
