@@ -62,6 +62,7 @@ const Dashboard = () => {
   } = useNotifications();
   const paymentStats = usePaymentStats(payments);
   const [skipLoading, setSkipLoading] = useState(false);
+  const [ignoreLoading, setIgnoreLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -99,7 +100,7 @@ const Dashboard = () => {
     userType
   });
 
-  if (isLoading && !skipLoading) {
+  if (isLoading && !skipLoading && !ignoreLoading) {
     return (
       <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
@@ -119,7 +120,7 @@ const Dashboard = () => {
     );
   }
 
-  if (isLoading && skipLoading) {
+  if (isLoading && skipLoading && !ignoreLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="max-w-lg w-full bg-white border border-slate-100 shadow-sm rounded-2xl p-6 text-center">
@@ -151,7 +152,7 @@ const Dashboard = () => {
               Retry
             </button>
             <button
-              onClick={() => setSkipLoading(true)}
+              onClick={() => setIgnoreLoading(true)}
               className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100"
             >
               Continue anyway
