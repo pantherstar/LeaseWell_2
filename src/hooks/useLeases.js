@@ -3,12 +3,11 @@ import {
   getLeases,
   getLease,
   createLease,
-  updateLease,
-  deleteLease
+  updateLease
 } from '../services/supabase/database.service';
 import { isSupabaseConfigured } from '../services/supabase/client';
 import { mockLeases } from '../utils/mockData';
-import { createLeaseByEmail } from '../services/supabase/leases.service';
+import { createLeaseByEmail, deleteLeaseById } from '../services/supabase/leases.service';
 
 /**
  * Hook for managing leases
@@ -79,7 +78,7 @@ export const useLeases = (filters = {}) => {
   };
 
   const remove = async (leaseId) => {
-    const { data, error: deleteError } = await deleteLease(leaseId);
+    const { data, error: deleteError } = await deleteLeaseById({ leaseId });
 
     if (deleteError) {
       return { success: false, error: deleteError.message };

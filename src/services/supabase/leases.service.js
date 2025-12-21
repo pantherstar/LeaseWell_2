@@ -61,3 +61,23 @@ export const requestLease = async ({ propertyId, message }) => {
     return { data: null, error };
   }
 };
+
+export const deleteLeaseById = async ({ leaseId }) => {
+  try {
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke('delete-lease', {
+        body: {
+          leaseId
+        }
+      })
+    );
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
