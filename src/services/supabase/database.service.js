@@ -648,45 +648,37 @@ export const uploadDocument = async (file, metadata) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: null, error: new Error('Not authenticated') };
 
-    // Generate file path
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `${user.id}/${metadata.propertyId || 'general'}/${fileName}`;
+    const readAsBase64 = (fileToRead) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result !== 'string') {
+          reject(new Error('Unable to read file'));
+          return;
+        }
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Unable to read file'));
+      reader.readAsDataURL(fileToRead);
+    });
 
-    // Upload file to storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    const fileBase64 = await readAsBase64(file);
+    const { data: uploadData, error: uploadError } = await supabase.functions.invoke('upload-document', {
+      body: {
+        fileName: file.name,
+        fileType: file.type,
+        fileBase64,
+        propertyId: metadata.propertyId || null,
+        leaseId: metadata.leaseId || null,
+        documentType: metadata.documentType,
+        description: metadata.description || null
+      }
+    });
 
     if (uploadError) return { data: null, error: uploadError };
 
-    // Create database record
-    const { data: documentData, error: documentError } = await supabase
-      .from('documents')
-      .insert([{
-        property_id: metadata.propertyId || null,
-        lease_id: metadata.leaseId || null,
-        uploaded_by: user.id,
-        file_name: file.name,
-        file_path: uploadData.path,
-        file_size: file.size,
-        mime_type: file.type,
-        document_type: metadata.documentType,
-        description: metadata.description || null
-      }])
-      .select()
-      .single();
-
-    if (documentError) {
-      // Rollback: delete uploaded file
-      await supabase.storage.from('documents').remove([uploadData.path]);
-      return { data: null, error: documentError };
-    }
-
-    return { data: documentData, error: null };
+    return { data: uploadData?.data || uploadData, error: null };
   } catch (error) {
     return { data: null, error };
   }
