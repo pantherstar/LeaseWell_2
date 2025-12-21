@@ -41,6 +41,7 @@ const Dashboard = () => {
   const [leaseModalOpen, setLeaseModalOpen] = useState(false);
   const [leaseModalMode, setLeaseModalMode] = useState('create');
   const [activeLease, setActiveLease] = useState(null);
+  const [defaultLeasePropertyId, setDefaultLeasePropertyId] = useState('');
   const [leaseRequestModalOpen, setLeaseRequestModalOpen] = useState(false);
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -172,7 +173,6 @@ const Dashboard = () => {
   const menuItems = userType === 'landlord' ? [
     { id: 'overview', label: 'Overview', icon: Building2 },
     { id: 'properties', label: 'Properties', icon: Home },
-    { id: 'leases', label: 'Leases', icon: FileText },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'payments', label: 'Payments', icon: CreditCard },
@@ -249,6 +249,13 @@ const Dashboard = () => {
       showNotification(`Error: ${result.error}`);
     }
     return result;
+  };
+
+  const openLeaseModal = (mode, lease, propertyId = '') => {
+    setLeaseModalMode(mode);
+    setActiveLease(lease || null);
+    setDefaultLeasePropertyId(propertyId || '');
+    setLeaseModalOpen(true);
   };
 
   const handleUpdateLease = async (leaseId, updates) => {
@@ -588,9 +595,7 @@ const Dashboard = () => {
                 showNotification('Add a property before creating a lease.');
                 return;
               }
-              setLeaseModalMode('create');
-              setActiveLease(null);
-              setLeaseModalOpen(true);
+              openLeaseModal('create', null);
             }}
             className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
           >
@@ -654,9 +659,7 @@ const Dashboard = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
-                            setLeaseModalMode('view');
-                            setActiveLease(lease);
-                            setLeaseModalOpen(true);
+                            openLeaseModal('view', lease);
                           }}
                           className="p-2 hover:bg-slate-100 rounded-lg"
                         >
@@ -664,9 +667,7 @@ const Dashboard = () => {
                         </button>
                         <button
                           onClick={() => {
-                            setLeaseModalMode('edit');
-                            setActiveLease(lease);
-                            setLeaseModalOpen(true);
+                            openLeaseModal('edit', lease);
                           }}
                           className="p-2 hover:bg-slate-100 rounded-lg"
                         >
@@ -713,7 +714,7 @@ const Dashboard = () => {
             const inviteLabel = link ? 'Change Tenant' : 'Invite Tenant';
             return (
             <div key={property.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-semibold text-slate-800">{property.address}{property.unit_number ? `, ${property.unit_number}` : ''}</h3>
                   <p className="text-sm text-slate-500">{property.city}, {property.state} {property.zip_code}</p>
@@ -727,27 +728,95 @@ const Dashboard = () => {
                     <p className="text-sm text-emerald-700 mt-3">Tenant: {tenantName}</p>
                   )}
                 </div>
-                <button
-                  onClick={async () => {
-                    if (link) {
-                      const confirmed = window.confirm(`Remove ${tenantName || 'this tenant'} from ${property.address}?`);
-                      if (!confirmed) {
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => openLeaseModal('create', null, property.id)}
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    Add Lease
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (link) {
+                        const confirmed = window.confirm(`Remove ${tenantName || 'this tenant'} from ${property.address}?`);
+                        if (!confirmed) {
+                          return;
+                        }
+                        await handleRemoveTenant({ propertyId: property.id, tenantId: link.tenant_id });
                         return;
                       }
-                      await handleRemoveTenant({ propertyId: property.id, tenantId: link.tenant_id });
-                      return;
-                    }
-                    setInvitePropertyId(property.id);
-                    setInviteModalOpen(true);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                    link ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
-                  }`}
-                >
-                  {link ? 'Remove Tenant' : inviteLabel}
-                </button>
+                      setInvitePropertyId(property.id);
+                      setInviteModalOpen(true);
+                    }}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                      link ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    {link ? 'Remove Tenant' : inviteLabel}
+                  </button>
+                </div>
               </div>
               {property.description && <p className="text-sm text-slate-600 mt-4">{property.description}</p>}
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-slate-700">Leases</p>
+                  <button
+                    onClick={() => openLeaseModal('create', null, property.id)}
+                    className="text-xs text-emerald-600 hover:text-emerald-700"
+                  >
+                    Create lease
+                  </button>
+                </div>
+                {leases.filter((lease) => lease.property_id === property.id).length === 0 ? (
+                  <p className="text-sm text-slate-500">No leases yet for this property.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {leases
+                      .filter((lease) => lease.property_id === property.id)
+                      .map((lease) => {
+                        const tenantLabel = lease.tenant?.full_name || lease.tenant || 'Tenant';
+                        const startDate = lease.start_date || lease.startDate;
+                        const endDate = lease.end_date || lease.endDate;
+                        const monthlyRent = lease.monthly_rent ?? lease.rent ?? 0;
+                        return (
+                          <div key={lease.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{tenantLabel}</p>
+                              <p className="text-xs text-slate-500">
+                                {startDate ? new Date(startDate).toLocaleDateString() : '—'} - {endDate ? new Date(endDate).toLocaleDateString() : '—'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold text-slate-800">${Number(monthlyRent).toLocaleString()}/mo</span>
+                              <button
+                                onClick={() => openLeaseModal('view', lease)}
+                                className="p-2 hover:bg-white rounded-lg"
+                              >
+                                <Eye className="w-4 h-4 text-slate-500" />
+                              </button>
+                              <button
+                                onClick={() => openLeaseModal('edit', lease)}
+                                className="p-2 hover:bg-white rounded-lg"
+                              >
+                                <Edit className="w-4 h-4 text-slate-500" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const confirmed = window.confirm('Delete this lease?');
+                                  if (!confirmed) return;
+                                  await handleDeleteLease(lease.id);
+                                }}
+                                className="p-2 hover:bg-white rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           )})}
         </div>
@@ -933,7 +1002,7 @@ const Dashboard = () => {
     switch (activeTab) {
       case 'overview': return userType === 'landlord' ? <LandlordOverview /> : <TenantOverview />;
       case 'properties': return <PropertiesTab />;
-      case 'leases': return <LeasesTab />;
+      case 'leases': return <PropertiesTab />;
       case 'maintenance': return <MaintenanceTab />;
       case 'documents': return <DocumentsTab />;
       case 'payments': return <PaymentsTab />;
@@ -1063,6 +1132,7 @@ const Dashboard = () => {
         properties={properties}
         mode={leaseModalMode}
         lease={activeLease}
+        defaultPropertyId={defaultLeasePropertyId}
       />
       <LeaseRequestModal
         isOpen={leaseRequestModalOpen}

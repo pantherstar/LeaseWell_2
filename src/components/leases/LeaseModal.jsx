@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, FileText, Mail, Calendar, DollarSign } from 'lucide-react';
 
-const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode = 'create', lease = null }) => {
+const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode = 'create', lease = null, defaultPropertyId = '' }) => {
   const [propertyId, setPropertyId] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
@@ -27,7 +27,9 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
       setSecurityDeposit(lease.security_deposit != null ? String(lease.security_deposit) : '');
       setStatus(lease.status || 'active');
     } else {
-      if (properties.length === 1) {
+      if (defaultPropertyId) {
+        setPropertyId(defaultPropertyId);
+      } else if (properties.length === 1) {
         setPropertyId(properties[0].id);
       } else {
         setPropertyId('');
@@ -41,7 +43,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
       setStatus('active');
     }
     setError('');
-  }, [isOpen, properties, lease]);
+  }, [isOpen, properties, lease, defaultPropertyId]);
 
   if (!isOpen) return null;
 
