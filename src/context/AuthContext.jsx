@@ -47,8 +47,13 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         if (session?.user) {
           const currentUser = await authService.getCurrentUser();
-          setUser(currentUser);
-          setUserType(currentUser?.profile?.role);
+          if (currentUser) {
+            setUser(currentUser);
+            setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
+          } else {
+            setUser(session.user);
+            setUserType(session.user?.user_metadata?.role || null);
+          }
         } else {
           setUser(null);
           setUserType(null);
@@ -104,8 +109,13 @@ export const AuthProvider = ({ children }) => {
 
       if (session?.user) {
         const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
-        setUserType(currentUser?.profile?.role);
+        if (currentUser) {
+          setUser(currentUser);
+          setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
+        } else {
+          setUser(session.user);
+          setUserType(session.user?.user_metadata?.role || null);
+        }
       }
     } catch (error) {
       console.error('Error checking session:', error);
