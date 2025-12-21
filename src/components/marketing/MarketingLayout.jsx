@@ -57,7 +57,7 @@ const MarketingLayout = ({ children }) => {
         <p>
           © 2025 LeaseWell. A product of{' '}
           <a
-            href="https://northridge.tech"
+            href="https://www.northridge.tech/"
             target="_blank"
             rel="noreferrer"
             className="text-emerald-200 hover:text-emerald-100 underline-offset-4 hover:underline"
