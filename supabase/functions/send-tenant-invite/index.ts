@@ -129,14 +129,35 @@ serve(async (req) => {
   const propertyLabel = `${property.address}${property.unit_number ? `, ${property.unit_number}` : ''}`;
   const joinUrl = `${appUrl || 'http://localhost:3001'}/login?invite=${inviteToken}`;
   const emailHtml = `
-    <div style="font-family: Arial, sans-serif; color: #1f2937;">
-      <h2>You have been invited to LeaseWell</h2>
-      <p>${profile.full_name || 'Your landlord'} invited you to join the property:</p>
-      <p><strong>${propertyLabel}</strong><br/>${property.city}, ${property.state} ${property.zip_code}</p>
-      <p>Click below to create your account and access your lease documents:</p>
-      <p><a href="${joinUrl}" style="display:inline-block;padding:12px 20px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;">Accept Invitation</a></p>
-      <p>If the button does not work, copy and paste this link into your browser:</p>
-      <p>${joinUrl}</p>
+    <div style="background:#0b1513;padding:40px 20px;font-family:Arial,sans-serif;color:#0f172a;">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <div style="padding:28px 28px 20px;text-align:center;background:linear-gradient(135deg,#10b981,#14b8a6);color:white;">
+          <h1 style="margin:0;font-size:22px;letter-spacing:0.5px;">LeaseWell</h1>
+          <p style="margin:6px 0 0;font-size:13px;opacity:0.9;">Modern tools for modern rentals</p>
+        </div>
+        <div style="padding:28px;text-align:center;">
+          <h2 style="margin:0 0 12px;font-size:20px;color:#0f172a;">You&apos;ve been invited</h2>
+          <p style="margin:0 0 16px;color:#334155;font-size:15px;">
+            ${profile.full_name || 'Your landlord'} invited you to join:
+          </p>
+          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:20px;">
+            <p style="margin:0;font-weight:600;color:#0f172a;">${propertyLabel}</p>
+            <p style="margin:6px 0 0;color:#64748b;">${property.city}, ${property.state} ${property.zip_code}</p>
+          </div>
+          <p style="margin:0 0 18px;color:#334155;font-size:15px;">
+            Create your account to access leases, payments, and documents.
+          </p>
+          <a href="${joinUrl}" style="display:inline-block;padding:12px 24px;background:#10b981;color:#fff;border-radius:999px;text-decoration:none;font-weight:600;">
+            Accept Invitation
+          </a>
+          <p style="margin:18px 0 0;color:#64748b;font-size:12px;">
+            If the button doesn&apos;t work, paste this link into your browser:
+          </p>
+          <p style="margin:6px 0 0;color:#0f172a;font-size:12px;word-break:break-all;">
+            ${joinUrl}
+          </p>
+        </div>
+      </div>
     </div>
   `;
 
