@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2, FileText, Wrench, CreditCard, LogOut, Calendar, DollarSign,
   CheckCircle, Clock, User, Home, Plus, Eye, Download, X, Menu, Bell,
@@ -28,6 +29,7 @@ import LeaseRequestModal from '../leases/LeaseRequestModal';
 import { requestLease } from '../../services/supabase/leases.service';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { userType, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -396,7 +398,11 @@ const Dashboard = () => {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } finally {
+      navigate('/login', { replace: true });
+    }
   };
 
   // Landlord Overview
