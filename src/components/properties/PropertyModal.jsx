@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Home, MapPin, Building2 } from 'lucide-react';
 
 const PropertyModal = ({ isOpen, onClose, onCreate }) => {
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
   const [form, setForm] = useState({
     address: '',
     city: '',
@@ -15,38 +16,102 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
     description: ''
   });
   const [saving, setSaving] = useState(false);
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressResults, setAddressResults] = useState([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const abortRef = useRef(null);
 
   if (!isOpen) return null;
+
+  useEffect(() => {
+    if (!mapboxToken || !addressQuery.trim()) {
+      setAddressResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    abortRef.current = controller;
+
+    const timer = setTimeout(async () => {
+      try {
+        setAddressLoading(true);
+        const query = encodeURIComponent(addressQuery.trim());
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?types=address&country=us&limit=5&access_token=${mapboxToken}`;
+        const response = await fetch(url, { signal: controller.signal });
+        const data = await response.json();
+        setAddressResults(data?.features || []);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setAddressResults([]);
+        }
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [addressQuery, mapboxToken]);
 
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const applyAddress = (feature) => {
+    const context = feature.context || [];
+    const findContext = (prefix) => context.find((item) => item.id?.startsWith(prefix));
+    const city = findContext('place')?.text || '';
+    const state = findContext('region')?.text || '';
+    const zip = findContext('postcode')?.text || '';
+    const addressLine = `${feature.address || ''} ${feature.text || ''}`.trim();
+
+    setForm((prev) => ({
+      ...prev,
+      address: addressLine,
+      city: city || prev.city,
+      state: state || prev.state,
+      zip_code: zip || prev.zip_code
+    }));
+    setAddressQuery(addressLine);
+    setAddressResults([]);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (saving) return;
     setSaving(true);
-    const payload = {
-      ...form,
-      bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
-      bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-      square_feet: form.square_feet ? Number(form.square_feet) : null
-    };
-    const result = await onCreate(payload);
-    setSaving(false);
-    if (result?.success) {
-      setForm({
-        address: '',
-        city: '',
-        state: '',
-        zip_code: '',
-        unit_number: '',
-        property_type: 'apartment',
-        bedrooms: '',
-        bathrooms: '',
-        square_feet: '',
-        description: ''
-      });
-      onClose();
+    try {
+      const payload = {
+        ...form,
+        bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
+        square_feet: form.square_feet ? Number(form.square_feet) : null
+      };
+      const result = await onCreate?.(payload);
+      if (result?.success) {
+        setForm({
+          address: '',
+          city: '',
+          state: '',
+          zip_code: '',
+          unit_number: '',
+          property_type: 'apartment',
+          bedrooms: '',
+          bathrooms: '',
+          square_feet: '',
+          description: ''
+        });
+        setAddressQuery('');
+        setAddressResults([]);
+        onClose();
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -59,7 +124,7 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
               <h2 className="text-xl font-bold">Add Property</h2>
               <p className="text-emerald-100 text-sm mt-1">Create a new property for your portfolio</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
+            <button type="button" onClick={onClose} className="p-2 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
@@ -71,13 +136,36 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  value={form.address}
-                  onChange={handleChange('address')}
+                  value={addressQuery}
+                  onChange={(event) => {
+                    setAddressQuery(event.target.value);
+                    setForm((prev) => ({ ...prev, address: event.target.value }));
+                  }}
                   placeholder="742 Evergreen Terrace"
                   className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                   required
                 />
+                {mapboxToken && addressResults.length > 0 && (
+                  <div className="absolute z-10 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-auto">
+                    {addressResults.map((feature) => (
+                      <button
+                        type="button"
+                        key={feature.id}
+                        onClick={() => applyAddress(feature)}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-emerald-50"
+                      >
+                        {feature.place_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {mapboxToken && addressLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Searching...</div>
+                )}
               </div>
+              {!mapboxToken && (
+                <p className="text-xs text-slate-500 mt-2">Add a map token to enable address autocomplete.</p>
+              )}
             </div>
 
             <div>
