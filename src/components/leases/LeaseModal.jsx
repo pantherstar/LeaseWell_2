@@ -47,7 +47,8 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
     if (result?.success) {
       onClose();
     } else {
-      setError(result?.error || 'Unable to create lease.');
+      const message = result?.error?.message || result?.error || 'Unable to create lease.';
+      setError(message);
     }
   };
 
