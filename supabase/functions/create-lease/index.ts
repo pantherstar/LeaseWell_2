@@ -126,6 +126,22 @@ serve(async (req) => {
     });
   }
 
+  const { error: linkError } = await supabase
+    .from('tenant_properties')
+    .upsert([{
+      property_id: property.id,
+      tenant_id: tenantProfile.id,
+      landlord_id: authData.user.id,
+      status: 'active'
+    }], { onConflict: 'property_id,tenant_id' });
+
+  if (linkError) {
+    return new Response(JSON.stringify({ error: linkError.message || 'Unable to link tenant to property.' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   const { data: lease, error: leaseError } = await supabase
     .from('leases')
     .insert([{
