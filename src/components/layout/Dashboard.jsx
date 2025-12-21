@@ -53,7 +53,7 @@ const Dashboard = () => {
     markAllAsRead
   } = useNotifications();
   const paymentStats = usePaymentStats(payments);
-  const [forceReady, setForceReady] = useState(false);
+  const [skipLoading, setSkipLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -76,14 +76,9 @@ const Dashboard = () => {
   const isLoading = leasesLoading && maintenanceLoading && documentsLoading && paymentsLoading && propertiesLoading && profileLoading;
 
   useEffect(() => {
-    if (!isLoading) {
-      setForceReady(false);
-      return;
-    }
-
-    const timer = setTimeout(() => setForceReady(true), 10000);
+    const timer = setTimeout(() => setSkipLoading(true), 8000);
     return () => clearTimeout(timer);
-  }, [isLoading]);
+  }, []);
 
   // Debug: Log loading states
   console.log('Dashboard loading states:', {
@@ -96,7 +91,7 @@ const Dashboard = () => {
     userType
   });
 
-  if (isLoading && !forceReady) {
+  if (isLoading && !skipLoading) {
     return (
       <div className="min-h-screen bg-[#0b1513] text-white flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.18),_transparent_55%)]" />
@@ -116,7 +111,7 @@ const Dashboard = () => {
     );
   }
 
-  if (isLoading && forceReady) {
+  if (isLoading && skipLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="max-w-lg w-full bg-white border border-slate-100 shadow-sm rounded-2xl p-6 text-center">
@@ -141,11 +136,17 @@ const Dashboard = () => {
                 refetchPayments();
                 refetchProperties();
                 refetchProfile();
-                setForceReady(false);
+                setSkipLoading(false);
               }}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
             >
               Retry
+            </button>
+            <button
+              onClick={() => setSkipLoading(true)}
+              className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100"
+            >
+              Continue anyway
             </button>
             <button
               onClick={() => window.location.reload()}
