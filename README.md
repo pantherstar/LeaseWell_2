@@ -137,7 +137,3 @@ Enter any email/password to log in with mock data.
 - Vite - Build tool
 - Tailwind CSS - Styling
 - Lucide React - Icons
-
-## License
-
-MIT License
