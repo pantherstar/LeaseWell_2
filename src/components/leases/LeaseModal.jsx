@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, FileText, Mail, Calendar, DollarSign } from 'lucide-react';
 
-const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
+const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode = 'create', lease = null }) => {
   const [propertyId, setPropertyId] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -11,22 +11,34 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
   const [status, setStatus] = useState('active');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const isView = mode === 'view';
+  const isEdit = mode === 'edit';
 
   useEffect(() => {
     if (!isOpen) return;
-    if (properties.length === 1) {
-      setPropertyId(properties[0].id);
+    if (lease) {
+      setPropertyId(lease.property_id || lease.property?.id || '');
+      setTenantEmail(lease.tenant?.email || lease.tenant_email || '');
+      setStartDate(lease.start_date || lease.startDate || '');
+      setEndDate(lease.end_date || lease.endDate || '');
+      setMonthlyRent(String(lease.monthly_rent ?? lease.rent ?? ''));
+      setSecurityDeposit(lease.security_deposit != null ? String(lease.security_deposit) : '');
+      setStatus(lease.status || 'active');
     } else {
-      setPropertyId('');
+      if (properties.length === 1) {
+        setPropertyId(properties[0].id);
+      } else {
+        setPropertyId('');
+      }
+      setTenantEmail('');
+      setStartDate('');
+      setEndDate('');
+      setMonthlyRent('');
+      setSecurityDeposit('');
+      setStatus('active');
     }
-    setTenantEmail('');
-    setStartDate('');
-    setEndDate('');
-    setMonthlyRent('');
-    setSecurityDeposit('');
-    setStatus('active');
     setError('');
-  }, [isOpen, properties]);
+  }, [isOpen, properties, lease]);
 
   if (!isOpen) return null;
 
@@ -34,7 +46,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
     event.preventDefault();
     setError('');
     setSaving(true);
-    const result = await onCreate({
+    const payload = {
       propertyId,
       tenantEmail,
       startDate,
@@ -42,7 +54,17 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
       monthlyRent: monthlyRent ? Number(monthlyRent) : 0,
       securityDeposit: securityDeposit ? Number(securityDeposit) : null,
       status
-    });
+    };
+
+    const result = isEdit
+      ? await onUpdate?.(lease?.id, {
+          start_date: payload.startDate,
+          end_date: payload.endDate,
+          monthly_rent: payload.monthlyRent,
+          security_deposit: payload.securityDeposit,
+          status: payload.status
+        })
+      : await onCreate(payload);
     setSaving(false);
     if (result?.success) {
       onClose();
@@ -58,8 +80,12 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-bold">Create Lease</h2>
-              <p className="text-emerald-100 text-sm mt-1">Link a tenant to a property</p>
+              <h2 className="text-xl font-bold">
+                {isView ? 'Lease Details' : isEdit ? 'Edit Lease' : 'Create Lease'}
+              </h2>
+              <p className="text-emerald-100 text-sm mt-1">
+                {isView ? 'Review lease information' : 'Link a tenant to a property'}
+              </p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
           </div>
@@ -73,6 +99,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
               onChange={(e) => setPropertyId(e.target.value)}
               className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
               required
+              disabled={isView || isEdit}
             >
               <option value="" disabled>Select a property</option>
               {properties.map((property) => (
@@ -97,6 +124,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                 placeholder="tenant@example.com"
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                 required
+                disabled={isView || isEdit}
               />
             </div>
           </div>
@@ -112,6 +140,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                   required
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -125,6 +154,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                   required
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -143,6 +173,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                   onChange={(e) => setMonthlyRent(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                   required
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -157,6 +188,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                   value={securityDeposit}
                   onChange={(e) => setSecurityDeposit(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -170,6 +202,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                disabled={isView}
               >
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
@@ -185,23 +218,25 @@ const LeaseModal = ({ isOpen, onClose, onCreate, properties = [] }) => {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving || !propertyId}
-            className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating lease...
-              </>
-            ) : (
-              <>
-                <FileText className="w-5 h-5" />
-                Create Lease
-              </>
-            )}
-          </button>
+          {!isView && (
+            <button
+              type="submit"
+              disabled={saving || !propertyId}
+              className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {isEdit ? 'Saving changes...' : 'Creating lease...'}
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5" />
+                  {isEdit ? 'Save Changes' : 'Create Lease'}
+                </>
+              )}
+            </button>
+          )}
         </form>
       </div>
     </div>

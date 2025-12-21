@@ -39,13 +39,15 @@ const Dashboard = () => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [invitePropertyId, setInvitePropertyId] = useState('');
   const [leaseModalOpen, setLeaseModalOpen] = useState(false);
+  const [leaseModalMode, setLeaseModalMode] = useState('create');
+  const [activeLease, setActiveLease] = useState(null);
   const [leaseRequestModalOpen, setLeaseRequestModalOpen] = useState(false);
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
   // Use custom hooks for data fetching
-  const { leases, loading: leasesLoading, error: leasesError, create: createLease, refetch: refetchLeases } = useLeases();
+  const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
   const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, refetch: refetchMaintenance } = useMaintenance();
   const { documents, loading: documentsLoading, error: documentsError, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
   const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
@@ -240,6 +242,30 @@ const Dashboard = () => {
     const result = await createLease(data);
     if (result.success) {
       showNotification('Lease created!');
+      await refetchLeases();
+      setLeaseModalOpen(false);
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+    return result;
+  };
+
+  const handleUpdateLease = async (leaseId, updates) => {
+    const result = await updateLease(leaseId, updates);
+    if (result.success) {
+      showNotification('Lease updated!');
+      await refetchLeases();
+      setLeaseModalOpen(false);
+    } else {
+      showNotification(`Error: ${result.error}`);
+    }
+    return result;
+  };
+
+  const handleDeleteLease = async (leaseId) => {
+    const result = await deleteLease(leaseId);
+    if (result.success) {
+      showNotification('Lease deleted.');
       await refetchLeases();
     } else {
       showNotification(`Error: ${result.error}`);
@@ -561,6 +587,8 @@ const Dashboard = () => {
                 showNotification('Add a property before creating a lease.');
                 return;
               }
+              setLeaseModalMode('create');
+              setActiveLease(null);
               setLeaseModalOpen(true);
             }}
             className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 flex items-center gap-2 font-medium"
@@ -623,9 +651,36 @@ const Dashboard = () => {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-slate-100 rounded-lg"><Eye className="w-4 h-4 text-slate-500" /></button>
-                        <button className="p-2 hover:bg-slate-100 rounded-lg"><Edit className="w-4 h-4 text-slate-500" /></button>
-                        <button className="p-2 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-500" /></button>
+                        <button
+                          onClick={() => {
+                            setLeaseModalMode('view');
+                            setActiveLease(lease);
+                            setLeaseModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-slate-100 rounded-lg"
+                        >
+                          <Eye className="w-4 h-4 text-slate-500" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setLeaseModalMode('edit');
+                            setActiveLease(lease);
+                            setLeaseModalOpen(true);
+                          }}
+                          className="p-2 hover:bg-slate-100 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4 text-slate-500" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const confirmed = window.confirm('Delete this lease?');
+                            if (!confirmed) return;
+                            await handleDeleteLease(lease.id);
+                          }}
+                          className="p-2 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1003,7 +1058,10 @@ const Dashboard = () => {
         isOpen={leaseModalOpen}
         onClose={() => setLeaseModalOpen(false)}
         onCreate={handleCreateLease}
+        onUpdate={handleUpdateLease}
         properties={properties}
+        mode={leaseModalMode}
+        lease={activeLease}
       />
       <LeaseRequestModal
         isOpen={leaseRequestModalOpen}
