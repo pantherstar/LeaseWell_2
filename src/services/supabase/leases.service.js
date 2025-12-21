@@ -7,6 +7,7 @@ const withTimeout = (promise, timeoutMs = 12000) => Promise.race([
 
 export const createLeaseByEmail = async ({
   propertyId,
+  tenantName,
   tenantEmail,
   startDate,
   endDate,
@@ -19,6 +20,7 @@ export const createLeaseByEmail = async ({
       supabase.functions.invoke('create-lease', {
         body: {
           propertyId,
+          tenantName,
           tenantEmail,
           startDate,
           endDate,

@@ -3,6 +3,7 @@ import { X, FileText, Mail, Calendar, DollarSign } from 'lucide-react';
 
 const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode = 'create', lease = null }) => {
   const [propertyId, setPropertyId] = useState('');
+  const [tenantName, setTenantName] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -18,6 +19,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
     if (!isOpen) return;
     if (lease) {
       setPropertyId(lease.property_id || lease.property?.id || '');
+      setTenantName(lease.tenant?.full_name || lease.tenant_name || '');
       setTenantEmail(lease.tenant?.email || lease.tenant_email || '');
       setStartDate(lease.start_date || lease.startDate || '');
       setEndDate(lease.end_date || lease.endDate || '');
@@ -30,6 +32,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
       } else {
         setPropertyId('');
       }
+      setTenantName('');
       setTenantEmail('');
       setStartDate('');
       setEndDate('');
@@ -48,6 +51,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
     setSaving(true);
     const payload = {
       propertyId,
+      tenantName: tenantName?.trim() || null,
       tenantEmail,
       startDate,
       endDate,
@@ -57,7 +61,7 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
     };
 
     const result = isEdit
-      ? await onUpdate?.(lease?.id, {
+          ? await onUpdate?.(lease?.id, {
           start_date: payload.startDate,
           end_date: payload.endDate,
           monthly_rent: payload.monthlyRent,
@@ -111,6 +115,21 @@ const LeaseModal = ({ isOpen, onClose, onCreate, onUpdate, properties = [], mode
             {properties.length === 0 && (
               <p className="text-xs text-slate-500 mt-2">Add a property before creating leases.</p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Tenant Name</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                value={tenantName}
+                onChange={(e) => setTenantName(e.target.value)}
+                placeholder="Tenant full name"
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                disabled={isView || isEdit}
+              />
+            </div>
           </div>
 
           <div>

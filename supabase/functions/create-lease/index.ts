@@ -46,6 +46,7 @@ serve(async (req) => {
   let payload: {
     propertyId?: string;
     tenantEmail?: string;
+    tenantName?: string;
     startDate?: string;
     endDate?: string;
     monthlyRent?: number;
@@ -65,6 +66,7 @@ serve(async (req) => {
   const {
     propertyId,
     tenantEmail,
+    tenantName,
     startDate,
     endDate,
     monthlyRent,
@@ -124,6 +126,17 @@ serve(async (req) => {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+  }
+
+  if (tenantName) {
+    const trimmedName = tenantName.trim();
+    if (trimmedName) {
+      await supabase
+        .from('profiles')
+        .update({ full_name: trimmedName })
+        .eq('id', tenantProfile.id)
+        .is('full_name', null);
+    }
   }
 
   const { error: linkError } = await supabase
