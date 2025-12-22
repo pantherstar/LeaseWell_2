@@ -24,19 +24,37 @@ const ResetPasswordPage = () => {
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
 
+        console.log('Reset password - hash params:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          type,
+          fullHash: hash.substring(0, 50) + '...'
+        });
+
         if (accessToken && refreshToken && type === 'recovery') {
-          await supabase.auth.setSession({
+          console.log('Setting session from recovery tokens...');
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
+          if (sessionError) {
+            console.error('Error setting session:', sessionError);
+          }
         }
 
-        const { data } = await supabase.auth.getSession();
+        const { data, error: getSessionError } = await supabase.auth.getSession();
+        console.log('Session check result:', {
+          hasSession: !!data?.session,
+          userId: data?.session?.user?.id,
+          error: getSessionError
+        });
+
         if (!mounted) return;
         if (!data?.session) {
           setError('This reset link is invalid or expired. Please request a new one.');
         }
-      } catch {
+      } catch (err) {
+        console.error('Session check error:', err);
         if (mounted) {
           setError('Unable to validate this reset link. Please request a new one.');
         }
@@ -71,10 +89,26 @@ const ResetPasswordPage = () => {
 
     setLoading(true);
     try {
-      await authService.updatePassword(password);
+      // Verify we still have a valid session before attempting update
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        setError('Your session has expired. Please request a new password reset link.');
+        setLoading(false);
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
       setSuccess('Password updated. You can now sign in.');
       setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
+      console.error('Password update error:', err);
       setError(err?.message || 'Unable to update password.');
     } finally {
       setLoading(false);
