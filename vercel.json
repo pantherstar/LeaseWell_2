@@ -1,23 +1,14 @@
 {
-  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": "frontend",
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "https://leasewell2-production.up.railway.app/api/:path*"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/frontend/static/$1"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/frontend/static/favicon.png"
-    },
-    {
-      "src": "/((?!api|static|favicon).*)",
-      "dest": "/frontend/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
