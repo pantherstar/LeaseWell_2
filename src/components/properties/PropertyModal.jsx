@@ -19,6 +19,8 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
   const [addressQuery, setAddressQuery] = useState('');
   const [addressResults, setAddressResults] = useState([]);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
   const abortRef = useRef(null);
 
   if (!isOpen) return null;
@@ -26,6 +28,7 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
   useEffect(() => {
     if (!mapboxToken || !addressQuery.trim()) {
       setAddressResults([]);
+      setAddressError(null);
       return;
     }
 
@@ -38,14 +41,38 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
     const timer = setTimeout(async () => {
       try {
         setAddressLoading(true);
+        setAddressError(null);
         const query = encodeURIComponent(addressQuery.trim());
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?types=address&country=us&limit=5&access_token=${mapboxToken}`;
         const response = await fetch(url, { signal: controller.signal });
+        
+        if (!response.ok) {
+          throw new Error(`Mapbox API error: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
-        setAddressResults(data?.features || []);
+        
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid response from Mapbox API');
+        }
+        
+        // Handle Mapbox API errors in response
+        if (data.error) {
+          throw new Error(data.error.message || 'Mapbox API error');
+        }
+        
+        setAddressResults(Array.isArray(data.features) ? data.features : []);
       } catch (error) {
         if (error.name !== 'AbortError') {
+          console.error('Error fetching address suggestions:', error);
           setAddressResults([]);
+          // Only show error if it's not a network error (user might be offline)
+          if (error.name !== 'TypeError' || !error.message.includes('fetch')) {
+            setAddressError('Unable to fetch address suggestions. Please type the address manually.');
+          } else {
+            setAddressError(null); // Network errors are handled silently
+          }
         }
       } finally {
         setAddressLoading(false);
@@ -63,36 +90,61 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
   };
 
   const applyAddress = (feature) => {
-    const context = feature.context || [];
-    const findContext = (prefix) => context.find((item) => item.id?.startsWith(prefix));
-    const city = findContext('place')?.text || '';
-    const state = findContext('region')?.text || '';
-    const zip = findContext('postcode')?.text || '';
-    const addressLine = `${feature.address || ''} ${feature.text || ''}`.trim();
+    try {
+      if (!feature || typeof feature !== 'object') {
+        console.error('Invalid feature object:', feature);
+        return;
+      }
+      
+      const context = Array.isArray(feature.context) ? feature.context : [];
+      const findContext = (prefix) => context.find((item) => item?.id?.startsWith(prefix));
+      const city = findContext('place')?.text || '';
+      const state = findContext('region')?.text || '';
+      const zip = findContext('postcode')?.text || '';
+      const addressLine = `${feature.address || ''} ${feature.text || ''}`.trim();
 
-    setForm((prev) => ({
-      ...prev,
-      address: addressLine,
-      city: city || prev.city,
-      state: state || prev.state,
-      zip_code: zip || prev.zip_code
-    }));
-    setAddressQuery(addressLine);
-    setAddressResults([]);
+      setForm((prev) => ({
+        ...prev,
+        address: addressLine,
+        city: city || prev.city,
+        state: state || prev.state,
+        zip_code: zip || prev.zip_code
+      }));
+      setAddressQuery(addressLine);
+      setAddressResults([]);
+      setAddressError(null);
+    } catch (error) {
+      console.error('Error applying address:', error);
+      setAddressError('Error applying selected address. Please enter manually.');
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (saving) return;
+    
     setSaving(true);
+    setSubmitError(null);
+    
     try {
+      if (!onCreate) {
+        throw new Error('onCreate callback is not provided');
+      }
+      
       const payload = {
         ...form,
         bedrooms: form.bedrooms ? Number(form.bedrooms) : null,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
         square_feet: form.square_feet ? Number(form.square_feet) : null
       };
-      const result = await onCreate?.(payload);
+      
+      // Validate required fields
+      if (!payload.address || !payload.city || !payload.state || !payload.zip_code) {
+        throw new Error('Please fill in all required address fields');
+      }
+      
+      const result = await onCreate(payload);
+      
       if (result?.success) {
         setForm({
           address: '',
@@ -108,8 +160,17 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
         });
         setAddressQuery('');
         setAddressResults([]);
+        setAddressError(null);
+        setSubmitError(null);
         onClose();
+      } else {
+        const errorMessage = result?.error || 'Failed to create property. Please try again.';
+        setSubmitError(errorMessage);
+        console.error('Property creation failed:', result);
       }
+    } catch (error) {
+      console.error('Error submitting property form:', error);
+      setSubmitError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -165,6 +226,9 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
               </div>
               {!mapboxToken && (
                 <p className="text-xs text-slate-500 mt-2">Add a map token to enable address autocomplete.</p>
+              )}
+              {addressError && (
+                <p className="text-xs text-amber-600 mt-2">{addressError}</p>
               )}
             </div>
 
@@ -266,6 +330,12 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
               />
             </div>
           </div>
+
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <p className="text-sm text-red-600">{submitError}</p>
+            </div>
+          )}
 
           <button
             type="submit"

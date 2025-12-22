@@ -9,6 +9,7 @@ import PricingPage from './pages/PricingPage';
 import ContactPage from './pages/ContactPage';
 import Dashboard from './components/layout/Dashboard';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function AppRoutes() {
   const { isAuthenticated, userType } = useAuth();
@@ -35,9 +36,11 @@ function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <ErrorBoundary>
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          </ErrorBoundary>
         }
       />
 
