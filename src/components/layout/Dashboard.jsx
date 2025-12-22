@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, FileText, Wrench, CreditCard, LogOut, Calendar, DollarSign,
   CheckCircle, Clock, User, Home, Plus, Eye, Download, X, Menu, Bell,
-  Search, MoreVertical, Edit, Trash2, MessageSquare, Upload, Settings, ChevronDown
+  Search, MoreVertical, Edit, Trash2, MessageSquare, Upload, Settings, ChevronDown,
+  Shield, Mail, Camera, AlertTriangle, Key, Smartphone
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import PaymentModal from '../payments/PaymentModal';
@@ -27,10 +28,11 @@ import PropertyModal from '../properties/PropertyModal';
 import InviteTenantModal from '../tenants/InviteTenantModal';
 import LeaseRequestModal from '../leases/LeaseRequestModal';
 import { requestLease } from '../../services/supabase/leases.service';
+import { updateProfile, uploadAvatar } from '../../services/supabase/database.service';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { userType, signOut } = useAuth();
+  const { userType, signOut, resetPassword, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -49,6 +51,7 @@ const Dashboard = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const faviconUrl = '/favicon.png?v=2';
 
   // Use custom hooks for data fetching
@@ -186,11 +189,13 @@ const Dashboard = () => {
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ] : [
     { id: 'overview', label: 'My Unit', icon: Home },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'payments', label: 'Pay Rent', icon: CreditCard },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const handlePaymentSuccess = async () => {
@@ -1065,6 +1070,393 @@ const Dashboard = () => {
     </div>
   );
 
+  // Settings Tab
+  const SettingsTab = () => {
+    const [settingsForm, setSettingsForm] = useState({
+      fullName: profile?.full_name || '',
+      phone: profile?.phone || '',
+    });
+    const [saving, setSaving] = useState(false);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [passwordResetSent, setPasswordResetSent] = useState(false);
+    const [notificationPrefs, setNotificationPrefs] = useState({
+      paymentReminders: true,
+      maintenanceUpdates: true,
+      leaseAlerts: true,
+      messages: true,
+    });
+
+    useEffect(() => {
+      if (profile) {
+        setSettingsForm({
+          fullName: profile.full_name || '',
+          phone: profile.phone || '',
+        });
+      }
+    }, [profile]);
+
+    const handleSaveProfile = async () => {
+      setSaving(true);
+      try {
+        const { error } = await updateProfile({
+          full_name: settingsForm.fullName,
+          phone: settingsForm.phone,
+        });
+        if (error) {
+          showNotification(`Error: ${error.message || error}`);
+        } else {
+          showNotification('Profile updated successfully!');
+          refetchProfile();
+        }
+      } catch (err) {
+        showNotification(`Error: ${err.message || 'Failed to update profile'}`);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const handleAvatarChange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showNotification('Please select an image file');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('Image must be less than 5MB');
+        return;
+      }
+
+      setAvatarUploading(true);
+      try {
+        const { error } = await uploadAvatar(file);
+        if (error) {
+          showNotification(`Error: ${error.message || error}`);
+        } else {
+          showNotification('Avatar updated successfully!');
+          refetchProfile();
+        }
+      } catch (err) {
+        showNotification(`Error: ${err.message || 'Failed to upload avatar'}`);
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+
+    const handlePasswordReset = async () => {
+      const email = profile?.email || user?.email;
+      if (!email) {
+        showNotification('No email address found');
+        return;
+      }
+
+      try {
+        const { error } = await resetPassword(email);
+        if (error) {
+          showNotification(`Error: ${error.message || error}`);
+        } else {
+          setPasswordResetSent(true);
+          showNotification('Password reset email sent! Check your inbox.');
+        }
+      } catch (err) {
+        showNotification(`Error: ${err.message || 'Failed to send reset email'}`);
+      }
+    };
+
+    const handleDeleteAccount = async () => {
+      showNotification('Please contact support to delete your account.');
+      setDeleteAccountModalOpen(false);
+    };
+
+    return (
+      <div className="space-y-6 max-w-4xl">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Settings</h2>
+          <p className="text-slate-500">Manage your account settings and preferences</p>
+        </div>
+
+        {/* Profile Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <User className="w-5 h-5" /> Profile Information
+            </h3>
+          </div>
+          <div className="p-6 space-y-6">
+            {/* Avatar */}
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-2xl font-semibold overflow-hidden">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    profile?.full_name?.charAt(0).toUpperCase() || (userType === 'landlord' ? 'L' : 'T')
+                  )}
+                </div>
+                <label className="absolute -bottom-1 -right-1 w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center cursor-pointer hover:bg-slate-50 shadow-sm">
+                  <Camera className="w-4 h-4 text-slate-600" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    disabled={avatarUploading}
+                  />
+                </label>
+              </div>
+              <div>
+                <p className="font-medium text-slate-800">{profile?.full_name || 'Your Name'}</p>
+                <p className="text-sm text-slate-500">{profile?.email}</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {avatarUploading ? 'Uploading...' : 'Click the camera icon to change your photo'}
+                </p>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={settingsForm.fullName}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, fullName: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Enter your full name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={settingsForm.phone}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={profile?.email || ''}
+                  disabled
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-slate-400 mt-1">Email cannot be changed</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Account Type</label>
+                <input
+                  type="text"
+                  value={userType === 'landlord' ? 'Property Manager' : 'Tenant'}
+                  disabled
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed capitalize"
+                />
+              </div>
+            </div>
+
+            {/* Member Since */}
+            <div className="pt-4 border-t border-slate-100">
+              <p className="text-sm text-slate-500">
+                Member since {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
+              </p>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Security Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Shield className="w-5 h-5" /> Security
+            </h3>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
+                  <Key className="w-5 h-5 text-violet-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Password</p>
+                  <p className="text-sm text-slate-500">Change your account password</p>
+                </div>
+              </div>
+              <button
+                onClick={handlePasswordReset}
+                disabled={passwordResetSent}
+                className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium disabled:opacity-50"
+              >
+                {passwordResetSent ? 'Email Sent' : 'Reset Password'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-slate-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">Two-Factor Authentication</p>
+                  <p className="text-sm text-slate-500">Add an extra layer of security</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-xs font-medium">Coming Soon</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Notification Preferences */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Mail className="w-5 h-5" /> Notification Preferences
+            </h3>
+          </div>
+          <div className="p-6 space-y-4">
+            {[
+              { key: 'paymentReminders', label: 'Payment Reminders', desc: 'Get notified about upcoming and overdue payments' },
+              { key: 'maintenanceUpdates', label: 'Maintenance Updates', desc: 'Receive updates on maintenance request status' },
+              { key: 'leaseAlerts', label: 'Lease Alerts', desc: 'Get notified about lease expirations and renewals' },
+              { key: 'messages', label: 'Messages', desc: 'Receive email notifications for new messages' },
+            ].map((pref) => (
+              <div key={pref.key} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div>
+                  <p className="font-medium text-slate-800">{pref.label}</p>
+                  <p className="text-sm text-slate-500">{pref.desc}</p>
+                </div>
+                <button
+                  onClick={() => setNotificationPrefs({ ...notificationPrefs, [pref.key]: !notificationPrefs[pref.key] })}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${notificationPrefs[pref.key] ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${notificationPrefs[pref.key] ? 'translate-x-7' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stripe Connection (Landlord Only) */}
+        {userType === 'landlord' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5" /> Payment Settings
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${profile?.stripe_account_id ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                    <CreditCard className={`w-5 h-5 ${profile?.stripe_account_id ? 'text-emerald-600' : 'text-amber-600'}`} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-800">Stripe Account</p>
+                    <p className="text-sm text-slate-500">
+                      {profile?.stripe_account_id ? 'Connected and ready to receive payments' : 'Connect to receive tenant payments'}
+                    </p>
+                  </div>
+                </div>
+                {profile?.stripe_account_id ? (
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Connected
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleConnectStripe}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                  >
+                    Connect Stripe
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Danger Zone */}
+        <div className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-red-600 to-rose-600">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> Danger Zone
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-100">
+              <div>
+                <p className="font-medium text-slate-800">Delete Account</p>
+                <p className="text-sm text-slate-500">Permanently delete your account and all data</p>
+              </div>
+              <button
+                onClick={() => setDeleteAccountModalOpen(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Delete Account Modal */}
+        {deleteAccountModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Delete Account</h3>
+                  <p className="text-sm text-slate-500">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-slate-600 mb-6">
+                Are you sure you want to delete your account? All your data, including properties, leases, and payment history will be permanently removed.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteAccountModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return userType === 'landlord' ? <LandlordOverview /> : <TenantOverview />;
@@ -1073,6 +1465,7 @@ const Dashboard = () => {
       case 'maintenance': return <MaintenanceTab />;
       case 'documents': return <DocumentsTab />;
       case 'payments': return <PaymentsTab />;
+      case 'settings': return <SettingsTab />;
       default: return null;
     }
   };
@@ -1202,7 +1595,7 @@ const Dashboard = () => {
                       <button
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          showNotification('Profile settings coming soon!');
+                          setActiveTab('settings');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
@@ -1212,7 +1605,7 @@ const Dashboard = () => {
                       <button
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          showNotification('Settings coming soon!');
+                          setActiveTab('settings');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
