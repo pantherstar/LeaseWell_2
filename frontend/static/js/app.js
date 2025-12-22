@@ -3,10 +3,10 @@
  * Complete CRUD functionality for properties, leases, and maintenance
  */
 
-// Use Railway backend for production, localhost for local dev
+// Use relative URL (Vercel proxies to Railway in production)
 const API_BASE = window.location.hostname === 'localhost'
     ? 'http://localhost:8000/api/v1'
-    : 'https://leasewell2-production.up.railway.app/api/v1';
+    : '/api/v1';
 let currentUser = null;
 let authToken = null;
 let dashboardData = null;

@@ -1,23 +1,19 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+      "source": "/api/:path*",
+      "destination": "https://leasewell2-production.up.railway.app/api/:path*"
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
     {
       "src": "/static/(.*)",
       "dest": "/frontend/static/$1"
     },
     {
       "src": "/favicon.ico",
-      "dest": "/frontend/favicon.ico"
+      "dest": "/frontend/static/favicon.png"
     },
     {
       "src": "/((?!api|static|favicon).*)",
