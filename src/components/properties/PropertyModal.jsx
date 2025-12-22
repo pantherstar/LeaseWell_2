@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Home, MapPin, Building2 } from 'lucide-react';
 
 const PropertyModal = ({ isOpen, onClose, onCreate }) => {
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
   const [form, setForm] = useState({
     address: '',
@@ -23,6 +24,11 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
   const [submitError, setSubmitError] = useState(null);
   const abortRef = useRef(null);
 
+  // Ensure callbacks are functions (after hooks)
+  const safeOnClose = typeof onClose === 'function' ? onClose : () => {};
+  const safeOnCreate = typeof onCreate === 'function' ? onCreate : null;
+
+  // Early return AFTER all hooks
   if (!isOpen) return null;
 
   useEffect(() => {
@@ -126,10 +132,10 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
     setSaving(true);
     setSubmitError(null);
     
-    try {
-      if (!onCreate) {
-        throw new Error('onCreate callback is not provided');
-      }
+      try {
+        if (!safeOnCreate) {
+          throw new Error('onCreate callback is not provided');
+        }
       
       const payload = {
         ...form,
@@ -143,7 +149,14 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
         throw new Error('Please fill in all required address fields');
       }
       
-      const result = await onCreate(payload);
+      // Call onCreate with error handling
+      let result;
+      try {
+        result = await safeOnCreate(payload);
+      } catch (createError) {
+        console.error('Error in onCreate callback:', createError);
+        throw new Error(createError?.message || 'Failed to create property. Please check your connection and try again.');
+      }
       
       if (result?.success) {
         setForm({
@@ -162,15 +175,16 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
         setAddressResults([]);
         setAddressError(null);
         setSubmitError(null);
-        onClose();
+        safeOnClose();
       } else {
-        const errorMessage = result?.error || 'Failed to create property. Please try again.';
+        const errorMessage = result?.error?.message || result?.error || 'Failed to create property. Please try again.';
         setSubmitError(errorMessage);
         console.error('Property creation failed:', result);
       }
     } catch (error) {
       console.error('Error submitting property form:', error);
-      setSubmitError(error.message || 'An unexpected error occurred. Please try again.');
+      const errorMessage = error?.message || 'An unexpected error occurred. Please try again.';
+      setSubmitError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -185,7 +199,7 @@ const PropertyModal = ({ isOpen, onClose, onCreate }) => {
               <h2 className="text-xl font-bold">Add Property</h2>
               <p className="text-emerald-100 text-sm mt-1">Create a new property for your portfolio</p>
             </div>
-            <button type="button" onClick={onClose} className="p-2 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
+            <button type="button" onClick={safeOnClose} className="p-2 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
           </div>
         </div>
 

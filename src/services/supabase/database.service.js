@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { supabase, isSupabaseConfigured } from './client';
 
 /**
  * Database service for all CRUD operations
@@ -20,31 +20,44 @@ const USER_CACHE_TTL = 5000; // 5 seconds
  * @returns {Promise<{user: Object|null, error: Error|null}>}
  */
 const getCurrentUserCached = async (userId = null) => {
-  // If userId provided, use it directly
-  if (userId) {
-    return { user: { id: userId }, error: null };
-  }
-
-  // Check cache
-  const now = Date.now();
-  if (_currentUserCache && (now - _currentUserCacheTime) < USER_CACHE_TTL) {
-    return { user: _currentUserCache, error: null };
-  }
-
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      _currentUserCache = null;
-      return { user: null, error: error || new Error('Not authenticated') };
+    // If userId provided, use it directly
+    if (userId) {
+      return { user: { id: userId }, error: null };
     }
 
-    // Update cache
-    _currentUserCache = user;
-    _currentUserCacheTime = now;
-    return { user, error: null };
+    // Check cache
+    const now = Date.now();
+    if (_currentUserCache && (now - _currentUserCacheTime) < USER_CACHE_TTL) {
+      return { user: _currentUserCache, error: null };
+    }
+
+    // Check if Supabase is configured before making auth calls
+    if (!isSupabaseConfigured()) {
+      _currentUserCache = null;
+      return { user: null, error: new Error('Supabase not configured') };
+    }
+
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        _currentUserCache = null;
+        return { user: null, error: error || new Error('Not authenticated') };
+      }
+
+      // Update cache
+      _currentUserCache = user;
+      _currentUserCacheTime = now;
+      return { user, error: null };
+    } catch (error) {
+      _currentUserCache = null;
+      console.error('Error getting user from Supabase:', error);
+      return { user: null, error: error instanceof Error ? error : new Error(String(error)) };
+    }
   } catch (error) {
     _currentUserCache = null;
-    return { user: null, error };
+    console.error('Unexpected error in getCurrentUserCached:', error);
+    return { user: null, error: error instanceof Error ? error : new Error(String(error)) };
   }
 };
 
@@ -221,8 +234,20 @@ export const getProperty = async (propertyId) => {
  */
 export const createProperty = async (property, userId = null) => {
   try {
+    // Check if Supabase is configured first
+    if (!isSupabaseConfigured()) {
+      return { data: null, error: new Error('Supabase is not configured. Please check your environment variables.') };
+    }
+
     const { user, error: userError } = await getCurrentUserCached(userId);
-    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
+    if (userError || !user) {
+      return { data: null, error: userError || new Error('Not authenticated') };
+    }
+
+    // Validate property data
+    if (!property || typeof property !== 'object') {
+      return { data: null, error: new Error('Invalid property data') };
+    }
 
     const { data, error } = await supabase
       .from('properties')
@@ -233,9 +258,15 @@ export const createProperty = async (property, userId = null) => {
       .select('id, address, city, state, zip_code, unit_number, property_type, bedrooms, bathrooms, square_feet, description, amenities, landlord_id, created_at, updated_at')
       .single();
 
-    return { data, error };
+    if (error) {
+      console.error('Supabase error creating property:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
   } catch (error) {
-    return { data: null, error };
+    console.error('Unexpected error in createProperty:', error);
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
   }
 };
 

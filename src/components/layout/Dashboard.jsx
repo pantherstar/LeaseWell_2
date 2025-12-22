@@ -378,15 +378,24 @@ const Dashboard = () => {
   };
 
   const handleCreateProperty = async (data) => {
-    const result = await createProperty(data);
-    if (result.success) {
-      showNotification('Property created!');
-      await refetchProperties();
-      await refetchDashboard();
-    } else {
-      showNotification(`Error: ${result.error}`);
+    try {
+      const result = await createProperty(data);
+      if (result?.success) {
+        showNotification('Property created!');
+        await refetchProperties();
+        await refetchDashboard();
+      } else {
+        const errorMessage = result?.error?.message || result?.error || 'Failed to create property';
+        showNotification(`Error: ${errorMessage}`);
+        console.error('Property creation error:', result);
+      }
+      return result;
+    } catch (error) {
+      console.error('Unexpected error in handleCreateProperty:', error);
+      const errorMessage = error?.message || 'An unexpected error occurred while creating the property';
+      showNotification(`Error: ${errorMessage}`);
+      return { success: false, error: errorMessage };
     }
-    return result;
   };
 
   const handleRequestLease = async ({ message }) => {
