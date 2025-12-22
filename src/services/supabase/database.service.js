@@ -6,21 +6,73 @@ import { supabase } from './client';
  */
 
 // =====================================================
+// USER CACHING - Performance optimization
+// =====================================================
+
+// Cache for current user during request lifecycle
+let _currentUserCache = null;
+let _currentUserCacheTime = 0;
+const USER_CACHE_TTL = 5000; // 5 seconds
+
+/**
+ * Get current user with caching to avoid repeated calls
+ * @param {string} userId - Optional userId to skip getUser call
+ * @returns {Promise<{user: Object|null, error: Error|null}>}
+ */
+const getCurrentUserCached = async (userId = null) => {
+  // If userId provided, use it directly
+  if (userId) {
+    return { user: { id: userId }, error: null };
+  }
+
+  // Check cache
+  const now = Date.now();
+  if (_currentUserCache && (now - _currentUserCacheTime) < USER_CACHE_TTL) {
+    return { user: _currentUserCache, error: null };
+  }
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      _currentUserCache = null;
+      return { user: null, error: error || new Error('Not authenticated') };
+    }
+
+    // Update cache
+    _currentUserCache = user;
+    _currentUserCacheTime = now;
+    return { user, error: null };
+  } catch (error) {
+    _currentUserCache = null;
+    return { user: null, error };
+  }
+};
+
+/**
+ * Clear user cache (call after sign out or user changes)
+ */
+export const clearUserCache = () => {
+  _currentUserCache = null;
+  _currentUserCacheTime = 0;
+};
+
+// =====================================================
 // PROFILES
 // =====================================================
 
 /**
  * Get current user's profile
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const getProfile = async () => {
+export const getProfile = async (userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, full_name, phone, role, avatar_url, created_at, updated_at')
       .eq('id', user.id)
       .single();
 
@@ -33,19 +85,25 @@ export const getProfile = async () => {
 /**
  * Update current user's profile
  * @param {Object} updates - Profile fields to update
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const updateProfile = async (updates) => {
+export const updateProfile = async (updates, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
-      .select()
+      .select('id, email, full_name, phone, role, avatar_url, created_at, updated_at')
       .single();
+
+    // Clear cache after update
+    if (!error) {
+      clearUserCache();
+    }
 
     return { data, error };
   } catch (error) {
@@ -60,27 +118,57 @@ export const updateProfile = async (updates) => {
 /**
  * Get all properties for current user
  * Landlords see their properties, tenants see leased properties
+ * @param {string} userId - Optional userId to skip getUser call
+ * @param {string} userRole - Optional user role to skip profile fetch
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getProperties = async () => {
+export const getProperties = async (userId = null, userRole = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
-    const { data: profile } = await getProfile();
+    // Fetch profile and properties in parallel if role not provided
+    let profilePromise;
+    if (!userRole) {
+      profilePromise = getProfile(user.id);
+    } else {
+      profilePromise = Promise.resolve({ data: { role: userRole } });
+    }
+
+    // Start properties query for landlords (most common case)
+    const landlordQuery = supabase
+      .from('properties')
+      .select(`
+        id, address, city, state, zip_code, unit_number, property_type,
+        bedrooms, bathrooms, square_feet, description, amenities,
+        landlord_id, created_at, updated_at,
+        landlord:profiles!landlord_id(id, full_name, email, phone)
+      `)
+      .eq('landlord_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Start tenant query
+    const tenantQuery = supabase
+      .from('tenant_properties')
+      .select(`
+        status,
+        property:properties(
+          id, address, city, state, zip_code, unit_number, property_type,
+          bedrooms, bathrooms, square_feet, description, amenities,
+          landlord_id, created_at, updated_at,
+          landlord:profiles!landlord_id(id, full_name, email, phone)
+        )
+      `)
+      .eq('tenant_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    // Get profile to determine role
+    const { data: profile } = await profilePromise;
 
     if (profile?.role === 'tenant') {
-      const { data, error } = await supabase
-        .from('tenant_properties')
-        .select(`
-          status,
-          property:properties(
-            *,
-            landlord:profiles!landlord_id(id, full_name, email, phone)
-          )
-        `)
-        .eq('tenant_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await tenantQuery;
 
       if (error) {
         return { data: null, error };
@@ -93,19 +181,8 @@ export const getProperties = async () => {
       return { data: properties, error: null };
     }
 
-    let query = supabase
-      .from('properties')
-      .select(`
-        *,
-        landlord:profiles!landlord_id(id, full_name, email, phone)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (profile?.role === 'landlord') {
-      query = query.eq('landlord_id', user.id);
-    }
-
-    const { data, error } = await query;
+    // Landlord or admin - use landlord query
+    const { data, error } = await landlordQuery;
     return { data, error };
   } catch (error) {
     return { data: null, error };
@@ -122,7 +199,9 @@ export const getProperty = async (propertyId) => {
     const { data, error } = await supabase
       .from('properties')
       .select(`
-        *,
+        id, address, city, state, zip_code, unit_number, property_type,
+        bedrooms, bathrooms, square_feet, description, amenities,
+        landlord_id, created_at, updated_at,
         landlord:profiles!landlord_id(id, full_name, email, phone)
       `)
       .eq('id', propertyId)
@@ -137,12 +216,13 @@ export const getProperty = async (propertyId) => {
 /**
  * Create a new property (landlords only)
  * @param {Object} property - Property details
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Object|null, error: Error|null}>}
  */
-export const createProperty = async (property) => {
+export const createProperty = async (property, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     const { data, error } = await supabase
       .from('properties')
@@ -150,7 +230,7 @@ export const createProperty = async (property) => {
         ...property,
         landlord_id: user.id
       }])
-      .select()
+      .select('id, address, city, state, zip_code, unit_number, property_type, bedrooms, bathrooms, square_feet, description, amenities, landlord_id, created_at, updated_at')
       .single();
 
     return { data, error };
@@ -207,22 +287,26 @@ export const deleteProperty = async (propertyId) => {
 /**
  * Get all leases for current user
  * @param {Object} filters - Optional filters { status, propertyId }
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getLeases = async (filters = {}) => {
+export const getLeases = async (filters = {}, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     let query = supabase
       .from('leases')
       .select(`
-        *,
-        property:properties(*),
+        id, property_id, tenant_id, landlord_id, start_date, end_date,
+        monthly_rent, security_deposit, status, lease_document_url,
+        terms, created_at, updated_at,
+        property:properties(id, address, city, state, zip_code, unit_number),
         tenant:profiles!tenant_id(id, full_name, email, phone),
         landlord:profiles!landlord_id(id, full_name, email, phone)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (filters.status) {
       query = query.eq('status', filters.status);
@@ -344,22 +428,28 @@ export const deleteLease = async (leaseId) => {
 /**
  * Get all maintenance requests for current user
  * @param {Object} filters - Optional filters { status, priority, propertyId }
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getMaintenanceRequests = async (filters = {}) => {
+export const getMaintenanceRequests = async (filters = {}, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     let query = supabase
       .from('maintenance_requests')
       .select(`
-        *,
-        property:properties(*),
+        id, property_id, tenant_id, landlord_id, title, description,
+        priority, status, category, photos, assigned_to,
+        estimated_cost, actual_cost, scheduled_date, completed_date,
+        agent_status, agent_started_at, agent_completed_at,
+        created_at, updated_at,
+        property:properties(id, address, city, state, zip_code, unit_number),
         tenant:profiles!tenant_id(id, full_name, email, phone),
         landlord:profiles!landlord_id(id, full_name, email, phone)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (filters.status) {
       query = query.eq('status', filters.status);
@@ -424,7 +514,8 @@ export const createMaintenanceRequest = async (request) => {
         ...request,
         tenant_id: user.id,
         landlord_id: property.landlord_id,
-        status: request.status || 'pending'
+        status: request.status || 'pending',
+        agent_status: 'pending'
       }])
       .select(`
         *,
@@ -432,6 +523,25 @@ export const createMaintenanceRequest = async (request) => {
         landlord:profiles!landlord_id(id, full_name, email, phone)
       `)
       .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Send notification to landlord
+    if (data) {
+      const propertyLabel = `${property.address || ''}${property.unit_number ? `, ${property.unit_number}` : ''}`.trim();
+      await supabase
+        .from('notifications')
+        .insert([{
+          user_id: property.landlord_id,
+          title: 'New maintenance request',
+          message: `New maintenance request: ${request.title} at ${propertyLabel}`,
+          type: 'maintenance',
+          read: false,
+          metadata: { maintenance_request_id: data.id }
+        }]);
+    }
 
     return { data, error };
   } catch (error) {
@@ -484,6 +594,169 @@ export const deleteMaintenanceRequest = async (requestId) => {
   }
 };
 
+/**
+ * Deploy the contractor shopping agent for a maintenance request
+ * @param {string} requestId - Maintenance request UUID
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
+ */
+export const deployMaintenanceAgent = async (requestId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: new Error('Not authenticated') };
+
+    const { data, error } = await supabase.functions.invoke('shop-for-contractors', {
+      body: { maintenanceRequestId: requestId }
+    });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+/**
+ * Get contractor quotes for a maintenance request
+ * @param {string} requestId - Maintenance request UUID
+ * @returns {Promise<{data: Array|null, error: Error|null}>}
+ */
+export const getContractorQuotes = async (requestId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: new Error('Not authenticated') };
+
+    const { data, error } = await supabase
+      .from('contractor_quotes')
+      .select('*')
+      .eq('maintenance_request_id', requestId)
+      .order('quote_amount', { ascending: true });
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+/**
+ * Select a contractor quote and update the maintenance request
+ * @param {string} requestId - Maintenance request UUID
+ * @param {string} quoteId - Contractor quote UUID
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
+ */
+export const selectContractor = async (requestId, quoteId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: new Error('Not authenticated') };
+
+    // Get the quote details
+    const { data: quote, error: quoteError } = await supabase
+      .from('contractor_quotes')
+      .select('*')
+      .eq('id', quoteId)
+      .eq('maintenance_request_id', requestId)
+      .single();
+
+    if (quoteError || !quote) {
+      return { data: null, error: new Error('Quote not found') };
+    }
+
+    // Update the quote status to accepted
+    await supabase
+      .from('contractor_quotes')
+      .update({ status: 'accepted' })
+      .eq('id', quoteId);
+
+    // Reject all other quotes for this request
+    await supabase
+      .from('contractor_quotes')
+      .update({ status: 'rejected' })
+      .eq('maintenance_request_id', requestId)
+      .neq('id', quoteId);
+
+    // Update the maintenance request with contractor info
+    const { data: updatedRequest, error: updateError } = await supabase
+      .from('maintenance_requests')
+      .update({
+        assigned_to: quote.contractor_name,
+        estimated_cost: quote.quote_amount
+      })
+      .eq('id', requestId)
+      .select(`
+        *,
+        property:properties(*),
+        tenant:profiles!tenant_id(id, full_name, email, phone),
+        landlord:profiles!landlord_id(id, full_name, email, phone)
+      `)
+      .single();
+
+    if (updateError) {
+      return { data: null, error: updateError };
+    }
+
+    // Get tenant info for notification
+    const { data: maintenanceRequest } = await supabase
+      .from('maintenance_requests')
+      .select('tenant_id, title')
+      .eq('id', requestId)
+      .single();
+
+    if (maintenanceRequest) {
+      // Send notification to tenant
+      await supabase
+        .from('notifications')
+        .insert([{
+          user_id: maintenanceRequest.tenant_id,
+          title: 'Contractor selected',
+          message: `Your landlord selected ${quote.contractor_name} for: ${maintenanceRequest.title}`,
+          type: 'maintenance',
+          read: false,
+          metadata: { maintenance_request_id: requestId, quote_id: quoteId }
+        }]);
+    }
+
+    return { data: updatedRequest, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+/**
+ * Update maintenance request agent status
+ * @param {string} requestId - Maintenance request UUID
+ * @param {string} status - Agent status (pending, shopping, completed, failed)
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
+ */
+export const updateMaintenanceAgentStatus = async (requestId, status) => {
+  try {
+    const updates = { agent_status: status };
+    
+    if (status === 'shopping') {
+      updates.agent_started_at = new Date().toISOString();
+    } else if (status === 'completed' || status === 'failed') {
+      updates.agent_completed_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('maintenance_requests')
+      .update(updates)
+      .eq('id', requestId)
+      .select(`
+        *,
+        property:properties(*),
+        tenant:profiles!tenant_id(id, full_name, email, phone),
+        landlord:profiles!landlord_id(id, full_name, email, phone)
+      `)
+      .single();
+
+    return { data, error };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 // =====================================================
 // PAYMENTS
 // =====================================================
@@ -491,22 +764,26 @@ export const deleteMaintenanceRequest = async (requestId) => {
 /**
  * Get all payments for current user
  * @param {Object} filters - Optional filters { status, leaseId }
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getPayments = async (filters = {}) => {
+export const getPayments = async (filters = {}, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     let query = supabase
       .from('payments')
       .select(`
-        *,
-        lease:leases(*, property:properties(*)),
+        id, lease_id, tenant_id, landlord_id, amount, status,
+        payment_date, due_date, payment_method, late_fee,
+        stripe_payment_intent_id, created_at, updated_at,
+        lease:leases(id, property_id, monthly_rent, status, property:properties(id, address)),
         tenant:profiles!tenant_id(id, full_name, email),
         landlord:profiles!landlord_id(id, full_name, email)
       `)
-      .order('due_date', { ascending: false });
+      .order('due_date', { ascending: false })
+      .limit(100);
 
     if (filters.status) {
       query = query.eq('status', filters.status);
@@ -601,22 +878,25 @@ export const updatePayment = async (paymentId, updates) => {
 /**
  * Get all documents for current user
  * @param {Object} filters - Optional filters { propertyId, leaseId, documentType }
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getDocuments = async (filters = {}) => {
+export const getDocuments = async (filters = {}, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     let query = supabase
       .from('documents')
       .select(`
-        *,
-        property:properties(*),
-        lease:leases(*),
+        id, property_id, lease_id, document_type, file_name, file_path,
+        file_size, description, uploaded_by, created_at, updated_at,
+        property:properties(id, address, city, state),
+        lease:leases(id, start_date, end_date),
         uploader:profiles!uploaded_by(id, full_name, email)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (filters.propertyId) {
       query = query.eq('property_id', filters.propertyId);
@@ -841,16 +1121,17 @@ export const markMessageAsRead = async (messageId) => {
 /**
  * Get all notifications for current user
  * @param {Object} filters - Optional filters { unreadOnly, type }
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getNotifications = async (filters = {}) => {
+export const getNotifications = async (filters = {}, userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     let query = supabase
       .from('notifications')
-      .select('*')
+      .select('id, user_id, title, message, type, read, action_url, metadata, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -938,12 +1219,13 @@ export const deleteNotification = async (notificationId) => {
 
 /**
  * Get tenant property links for the current user (landlord or tenant)
+ * @param {string} userId - Optional userId to skip getUser call
  * @returns {Promise<{data: Array|null, error: Error|null}>}
  */
-export const getTenantPropertyLinks = async () => {
+export const getTenantPropertyLinks = async (userId = null) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null, error: new Error('Not authenticated') };
+    const { user, error: userError } = await getCurrentUserCached(userId);
+    if (userError || !user) return { data: null, error: userError || new Error('Not authenticated') };
 
     const { data, error } = await supabase
       .from('tenant_properties')
@@ -956,7 +1238,8 @@ export const getTenantPropertyLinks = async () => {
         created_at,
         tenant:profiles!tenant_id(id, full_name, email)
       `)
-      .or(`tenant_id.eq.${user.id},landlord_id.eq.${user.id}`);
+      .or(`tenant_id.eq.${user.id},landlord_id.eq.${user.id}`)
+      .limit(100);
 
     return { data, error };
   } catch (error) {

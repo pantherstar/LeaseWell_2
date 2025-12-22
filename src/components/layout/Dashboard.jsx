@@ -14,7 +14,7 @@ import LeaseModal from '../leases/LeaseModal';
 import OfflinePaymentModal from '../payments/OfflinePaymentModal';
 import logoMark from '../../assets/leasewell-mark.png';
 import { useLeases } from '../../hooks/useLeases';
-import { useMaintenance } from '../../hooks/useMaintenance';
+import { useMaintenance, useContractorQuotes } from '../../hooks/useMaintenance';
 import { useDocuments } from '../../hooks/useDocuments';
 import { usePayments, usePaymentStats } from '../../hooks/usePayments';
 import { useProperties } from '../../hooks/useProperties';
@@ -27,6 +27,7 @@ import { createConnectAccountLink } from '../../services/stripe/connect.service'
 import PropertyModal from '../properties/PropertyModal';
 import InviteTenantModal from '../tenants/InviteTenantModal';
 import LeaseRequestModal from '../leases/LeaseRequestModal';
+import ContractorQuotesView from '../maintenance/ContractorQuotesView';
 import { requestLease } from '../../services/supabase/leases.service';
 import { updateProfile, uploadAvatar } from '../../services/supabase/database.service';
 
@@ -56,7 +57,7 @@ const Dashboard = () => {
 
   // Use custom hooks for data fetching
   const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
-  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance } = useMaintenance();
+  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance, deployAgent } = useMaintenance();
   const { documents, loading: documentsLoading, error: documentsError, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
   const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
   const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
@@ -874,67 +875,136 @@ const Dashboard = () => {
   );
 
   // Maintenance Tab
-  const MaintenanceTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h2 className="text-2xl font-bold text-slate-800">Maintenance Requests</h2><p className="text-slate-500">{userType === 'landlord' ? 'Manage tenant requests' : 'Report and track issues'}</p></div>
-        {userType === 'tenant' && (<button onClick={() => setMaintenanceModalOpen(true)} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 flex items-center gap-2 font-medium"><Plus className="w-5 h-5" />New Request</button>)}
-      </div>
+  const MaintenanceTab = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div><h2 className="text-2xl font-bold text-slate-800">Maintenance Requests</h2><p className="text-slate-500">{userType === 'landlord' ? 'Manage tenant requests' : 'Report and track issues'}</p></div>
+          {userType === 'tenant' && (<button onClick={() => setMaintenanceModalOpen(true)} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 flex items-center gap-2 font-medium"><Plus className="w-5 h-5" />New Request</button>)}
+        </div>
 
-      <div className="grid gap-4">
-        {maintenanceRequests.map(request => (
-          <div key={request.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${request.priority === 'high' ? 'bg-red-100' : request.priority === 'medium' ? 'bg-amber-100' : 'bg-emerald-100'}`}>
-                  <Wrench className={`w-6 h-6 ${request.priority === 'high' ? 'text-red-600' : request.priority === 'medium' ? 'text-amber-600' : 'text-emerald-600'}`} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-slate-800">{request.title}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${request.priority === 'high' ? 'bg-red-100 text-red-600' : request.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>{request.priority}</span>
+        <div className="grid gap-4">
+          {maintenanceRequests.map(request => {
+            const MaintenanceRequestQuotes = () => {
+              const { quotes, loading: quotesLoading, selectContractor: selectContractorQuote, refetch: refetchQuotes } = useContractorQuotes(request.id);
+
+              const handleDeployAgent = async () => {
+                const result = await deployAgent(request.id);
+                if (result.success) {
+                  showNotification('Agent deployed! Shopping for contractors...');
+                  // Poll for updates
+                  const pollInterval = setInterval(async () => {
+                    await refetchMaintenance();
+                    await refetchQuotes();
+                    const updatedRequest = maintenanceRequests.find(r => r.id === request.id);
+                    if (updatedRequest?.agent_status === 'completed' || updatedRequest?.agent_status === 'failed') {
+                      clearInterval(pollInterval);
+                    }
+                  }, 3000);
+                  setTimeout(() => clearInterval(pollInterval), 60000); // Stop after 60 seconds
+                } else {
+                  showNotification(`Error: ${result.error}`);
+                }
+              };
+
+              const handleSelectContractor = async (quoteId) => {
+                const result = await selectContractorQuote(quoteId);
+                if (result.success) {
+                  showNotification('Contractor selected!');
+                  await refetchMaintenance();
+                } else {
+                  showNotification(`Error: ${result.error}`);
+                }
+                return result;
+              };
+
+              return (
+                <ContractorQuotesView
+                  maintenanceRequest={request}
+                  quotes={quotes}
+                  loading={quotesLoading}
+                  onSelectContractor={handleSelectContractor}
+                  onDeployAgent={handleDeployAgent}
+                />
+              );
+            };
+
+            return (
+              <div key={request.id} className="space-y-4">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${request.priority === 'high' ? 'bg-red-100' : request.priority === 'medium' ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+                        <Wrench className={`w-6 h-6 ${request.priority === 'high' ? 'text-red-600' : request.priority === 'medium' ? 'text-amber-600' : 'text-emerald-600'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-slate-800">{request.title}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${request.priority === 'high' ? 'bg-red-100 text-red-600' : request.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>{request.priority}</span>
+                          {request.assigned_to && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
+                              Assigned: {request.assigned_to}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-500 text-sm mt-1">{request.property?.address || request.property || 'Property'}</p>
+                        <p className="text-slate-600 mt-2">{request.description}</p>
+                        <div className="flex items-center gap-4 mt-3 text-sm text-slate-500">
+                          <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{request.created_at ? new Date(request.created_at).toLocaleDateString() : '—'}</span>
+                          {userType === 'landlord' && <span className="flex items-center gap-1"><User className="w-4 h-4" />{request.tenant?.full_name || request.tenant || 'Tenant'}</span>}
+                          {request.estimated_cost && (
+                            <span className="flex items-center gap-1"><DollarSign className="w-4 h-4" />Est: ${request.estimated_cost}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {userType === 'landlord' ? (
+                        <select
+                          value={request.status || 'pending'}
+                          onChange={async (e) => {
+                            const nextStatus = e.target.value;
+                            const result = await updateMaintenance(request.id, { status: nextStatus });
+                            if (result.success) {
+                              showNotification('Status updated.');
+                              // Auto-deploy agent when status changes to in_progress
+                              if (nextStatus === 'in_progress' && (!request.agent_status || request.agent_status === 'pending')) {
+                                const agentResult = await deployAgent(request.id);
+                                if (agentResult.success) {
+                                  showNotification('Agent deployed! Shopping for contractors...');
+                                }
+                              }
+                              await refetchMaintenance();
+                            } else {
+                              showNotification(`Error: ${result.error}`);
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <span className={`px-3 py-1.5 rounded-xl text-sm font-medium capitalize ${request.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : request.status === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
+                          {request.status === 'in_progress' ? 'In Progress' : request.status}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-slate-500 text-sm mt-1">{request.property?.address || request.property || 'Property'}</p>
-                  <p className="text-slate-600 mt-2">{request.description}</p>
-                  <div className="flex items-center gap-4 mt-3 text-sm text-slate-500">
-                    <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{request.created_at ? new Date(request.created_at).toLocaleDateString() : '—'}</span>
-                    {userType === 'landlord' && <span className="flex items-center gap-1"><User className="w-4 h-4" />{request.tenant?.full_name || request.tenant || 'Tenant'}</span>}
-                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {userType === 'landlord' ? (
-                  <select
-                    value={request.status || 'pending'}
-                    onChange={async (e) => {
-                      const nextStatus = e.target.value;
-                      const result = await updateMaintenance(request.id, { status: nextStatus });
-                      if (result.success) {
-                        showNotification('Status updated.');
-                        await refetchMaintenance();
-                      } else {
-                        showNotification(`Error: ${result.error}`);
-                      }
-                    }}
-                    className="px-3 py-2 rounded-xl text-sm font-medium border border-slate-200 bg-white text-slate-700"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                ) : (
-                  <span className={`px-3 py-1.5 rounded-xl text-sm font-medium capitalize ${request.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : request.status === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
-                    {request.status === 'in_progress' ? 'In Progress' : request.status}
-                  </span>
+                
+                {userType === 'landlord' && (
+                  <MaintenanceRequestQuotes />
                 )}
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Documents Tab
   const DocumentsTab = () => (

@@ -5,7 +5,10 @@ import {
   createMaintenanceRequest,
   updateMaintenanceRequest,
   deleteMaintenanceRequest,
-  subscribeToMaintenanceRequests
+  subscribeToMaintenanceRequests,
+  deployMaintenanceAgent,
+  getContractorQuotes,
+  selectContractor
 } from '../services/supabase/database.service';
 import { isSupabaseConfigured } from '../services/supabase/client';
 import { mockMaintenanceRequests } from '../utils/mockData';
@@ -110,6 +113,22 @@ export const useMaintenance = (filters = {}) => {
     return { success: true, data };
   };
 
+  const deployAgent = async (requestId) => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { data, error: deployError } = await deployMaintenanceAgent(requestId);
+
+    if (deployError) {
+      return { success: false, error: deployError.message || 'Failed to deploy agent' };
+    }
+
+    // Refresh requests after deploying agent
+    await fetchRequests();
+    return { success: true, data };
+  };
+
   return {
     requests,
     loading,
@@ -117,7 +136,8 @@ export const useMaintenance = (filters = {}) => {
     refetch: fetchRequests,
     create,
     update,
-    delete: remove
+    delete: remove,
+    deployAgent
   };
 };
 
@@ -168,5 +188,71 @@ export const useMaintenanceRequest = (requestId) => {
     loading,
     error,
     refetch: fetchRequest
+  };
+};
+
+/**
+ * Hook for managing contractor quotes for a maintenance request
+ * @param {string} requestId - Maintenance request UUID
+ * @returns {Object} { quotes, loading, error, refetch, selectContractor }
+ */
+export const useContractorQuotes = (requestId) => {
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchQuotes = useCallback(async () => {
+    if (!requestId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    if (!isSupabaseConfigured()) {
+      setQuotes([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error: fetchError } = await getContractorQuotes(requestId);
+
+    if (fetchError) {
+      setError(fetchError.message);
+      setQuotes([]);
+    } else {
+      setQuotes(data || []);
+    }
+
+    setLoading(false);
+  }, [requestId]);
+
+  useEffect(() => {
+    fetchQuotes();
+  }, [fetchQuotes]);
+
+  const selectContractorQuote = async (quoteId) => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    const { data, error: selectError } = await selectContractor(requestId, quoteId);
+
+    if (selectError) {
+      return { success: false, error: selectError.message || 'Failed to select contractor' };
+    }
+
+    // Refresh quotes after selection
+    await fetchQuotes();
+    return { success: true, data };
+  };
+
+  return {
+    quotes,
+    loading,
+    error,
+    refetch: fetchQuotes,
+    selectContractor: selectContractorQuote
   };
 };
