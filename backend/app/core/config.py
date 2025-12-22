@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     REDIS_TTL: int = 300  # 5 minutes default
 
     # CORS - stored as string, parsed to list
-    CORS_ORIGINS_STR: str = "http://localhost:8080,http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS_STR: str = "http://localhost:8080,http://localhost:3000,http://localhost:5173,https://leasewell2-production.up.railway.app"
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
@@ -53,10 +53,13 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "LeaseWell <onboarding@resend.dev>"
     FRONTEND_URL: str = "http://localhost:3000"
     VERCEL_URL: str = ""  # Auto-set by Vercel
+    RAILWAY_PUBLIC_DOMAIN: str = ""  # Auto-set by Railway
 
     @property
     def frontend_base_url(self) -> str:
-        """Get frontend URL - Vercel URL in production, FRONTEND_URL locally"""
+        """Get frontend URL - Railway/Vercel URL in production, FRONTEND_URL locally"""
+        if self.RAILWAY_PUBLIC_DOMAIN:
+            return f"https://{self.RAILWAY_PUBLIC_DOMAIN}"
         if self.VERCEL_URL:
             return f"https://{self.VERCEL_URL}"
         return self.FRONTEND_URL
