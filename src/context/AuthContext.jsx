@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const inactivityTimerRef = useRef(null);
   const inactivityLimitMs = 10 * 60 * 1000;
+  const profileCacheRef = useRef(null);
 
   const resetInactivityTimer = () => {
     if (inactivityTimerRef.current) {
@@ -46,8 +47,20 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         setSession(session);
         if (session?.user) {
+          // Clear cache if user changed
+          if (profileCacheRef.current?.userId !== session.user.id) {
+            profileCacheRef.current = null;
+          }
+
           const currentUser = await authService.getCurrentUser();
           if (currentUser) {
+            // Cache the profile
+            if (currentUser.profile) {
+              profileCacheRef.current = {
+                userId: session.user.id,
+                profile: currentUser.profile
+              };
+            }
             setUser(currentUser);
             setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
           } else {
@@ -57,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           setUser(null);
           setUserType(null);
+          profileCacheRef.current = null;
         }
         setLoading(false);
       }
@@ -104,14 +118,31 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const session = await authService.getSession();
+      // Get session and user in parallel
+      const [sessionResult, userResult] = await Promise.all([
+        authService.getSession(),
+        authService.getCurrentUser()
+      ]);
+
+      const session = sessionResult;
       setSession(session);
 
       if (session?.user) {
-        const currentUser = await authService.getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
+        // Use cached profile if available and user hasn't changed
+        if (profileCacheRef.current && profileCacheRef.current.userId === session.user.id) {
+          const cachedProfile = profileCacheRef.current.profile;
+          setUser({ ...session.user, profile: cachedProfile });
+          setUserType(cachedProfile?.role || session.user?.user_metadata?.role || null);
+        } else if (userResult) {
+          // Cache the profile for future use
+          if (userResult.profile) {
+            profileCacheRef.current = {
+              userId: session.user.id,
+              profile: userResult.profile
+            };
+          }
+          setUser(userResult);
+          setUserType(userResult?.profile?.role || userResult?.user_metadata?.role || null);
         } else {
           setUser(session.user);
           setUserType(session.user?.user_metadata?.role || null);
@@ -144,8 +175,16 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setUserType(user?.user_metadata?.role || null);
 
+      // Fetch and cache profile in background
       authService.getCurrentUser().then((currentUser) => {
         if (currentUser) {
+          // Cache the profile
+          if (currentUser.profile) {
+            profileCacheRef.current = {
+              userId: user.id,
+              profile: currentUser.profile
+            };
+          }
           setUser(currentUser);
           setUserType(currentUser?.profile?.role || currentUser?.user_metadata?.role || null);
         }
@@ -180,6 +219,10 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setUserType(null);
       setSession(null);
+      profileCacheRef.current = null;
+      // Clear database service cache
+      const { clearUserCache } = await import('../services/supabase/database.service');
+      clearUserCache();
       return { error: null };
     } catch (error) {
       return { error };

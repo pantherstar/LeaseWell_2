@@ -21,6 +21,7 @@ import { useProperties } from '../../hooks/useProperties';
 import { useProfile } from '../../hooks/useProfile';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useTenantLinks } from '../../hooks/useTenantLinks';
+import { useDashboardData } from '../../hooks/useDashboardData';
 import { sendTenantInvite } from '../../services/supabase/invites.service';
 import { revokeTenantAccess } from '../../services/supabase/tenantLinks.service';
 import { createConnectAccountLink } from '../../services/stripe/connect.service';
@@ -55,14 +56,29 @@ const Dashboard = () => {
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const faviconUrl = '/favicon.png?v=2';
 
-  // Use custom hooks for data fetching
-  const { leases, loading: leasesLoading, error: leasesError, create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
-  const { requests: maintenanceRequests, loading: maintenanceLoading, error: maintenanceError, create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance, deployAgent } = useMaintenance();
-  const { documents, loading: documentsLoading, error: documentsError, upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
-  const { payments, loading: paymentsLoading, error: paymentsError, update: updatePayment, refetch: refetchPayments } = usePayments();
-  const { properties, loading: propertiesLoading, error: propertiesError, create: createProperty, refetch: refetchProperties } = useProperties();
-  const { profile, loading: profileLoading, error: profileError, refetch: refetchProfile } = useProfile();
-  const { links: tenantLinks, refetch: refetchTenantLinks } = useTenantLinks();
+  // Use unified hook for parallel data fetching (performance optimization)
+  const {
+    profile,
+    properties,
+    leases,
+    maintenanceRequests,
+    documents,
+    payments,
+    notifications: dashboardNotifications,
+    tenantLinks,
+    loading: dashboardLoading,
+    error: dashboardError,
+    refetch: refetchDashboard
+  } = useDashboardData();
+
+  // Use individual hooks only for mutations and specialized features
+  const { create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
+  const { create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance, deployAgent } = useMaintenance();
+  const { upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
+  const { update: updatePayment, refetch: refetchPayments } = usePayments();
+  const { create: createProperty, refetch: refetchProperties } = useProperties();
+  const { refetch: refetchProfile } = useProfile();
+  const { refetch: refetchTenantLinks } = useTenantLinks();
   const {
     notifications,
     unreadCount,
@@ -72,6 +88,9 @@ const Dashboard = () => {
   const paymentStats = usePaymentStats(payments);
   const [skipLoading, setSkipLoading] = useState(false);
   const [ignoreLoading, setIgnoreLoading] = useState(false);
+
+  // Use notifications from notifications hook (has real-time updates)
+  const finalNotifications = notifications.length > 0 ? notifications : dashboardNotifications;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -96,24 +115,12 @@ const Dashboard = () => {
   };
 
   // Show loading state while data is being fetched
-  // Only show loading for initial load, not if all are still loading (which might indicate an error)
-  const isLoading = leasesLoading && maintenanceLoading && documentsLoading && paymentsLoading && propertiesLoading && profileLoading;
+  const isLoading = dashboardLoading;
 
   useEffect(() => {
-    const timer = setTimeout(() => setSkipLoading(true), 8000);
+    const timer = setTimeout(() => setSkipLoading(true), 5000); // Reduced timeout since parallel loading is faster
     return () => clearTimeout(timer);
   }, []);
-
-  // Debug: Log loading states
-  console.log('Dashboard loading states:', {
-    leasesLoading,
-    maintenanceLoading,
-    documentsLoading,
-    paymentsLoading,
-    propertiesLoading,
-    profileLoading,
-    userType
-  });
 
   if (isLoading && !skipLoading && !ignoreLoading) {
     return (
@@ -144,22 +151,12 @@ const Dashboard = () => {
             Some data is taking too long to load. You can retry or refresh the page.
           </p>
           <div className="mt-4 text-left text-xs text-slate-500 space-y-1">
-            {leasesError && <p>Leases: {leasesError}</p>}
-            {propertiesError && <p>Properties: {propertiesError}</p>}
-            {paymentsError && <p>Payments: {paymentsError}</p>}
-            {documentsError && <p>Documents: {documentsError}</p>}
-            {maintenanceError && <p>Maintenance: {maintenanceError}</p>}
-            {profileError && <p>Profile: {profileError}</p>}
+            {dashboardError && <p>Error: {dashboardError}</p>}
           </div>
           <div className="mt-6 flex items-center justify-center gap-3">
             <button
               onClick={() => {
-                refetchLeases();
-                refetchMaintenance();
-                refetchDocuments();
-                refetchPayments();
-                refetchProperties();
-                refetchProfile();
+                refetchDashboard();
                 setSkipLoading(false);
               }}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
@@ -203,6 +200,7 @@ const Dashboard = () => {
     showNotification('Payment processed successfully!');
     // Refetch payments to get updated data
     await refetchPayments();
+    await refetchDashboard();
   };
 
   const handleOfflinePayment = async ({ amount, method, paymentDate, notes }) => {
@@ -222,6 +220,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Payment recorded! Your landlord will confirm it.');
       await refetchPayments();
+      await refetchDashboard();
     } else {
       showNotification(`Error: ${result.error}`);
     }
@@ -234,6 +233,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Payment marked as paid.');
       await refetchPayments();
+      await refetchDashboard();
     } else {
       showNotification(`Error: ${result.error}`);
     }
@@ -260,6 +260,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Lease created!');
       await refetchLeases();
+      await refetchDashboard();
       setLeaseModalOpen(false);
     } else {
       showNotification(`Error: ${result.error}`);
@@ -279,6 +280,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Lease updated!');
       await refetchLeases();
+      await refetchDashboard();
       setLeaseModalOpen(false);
     } else {
       showNotification(`Error: ${result.error}`);
@@ -291,6 +293,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Lease deleted.');
       await refetchLeases();
+      await refetchDashboard();
     } else {
       showNotification(`Error: ${result.error}`);
     }
@@ -338,6 +341,7 @@ const Dashboard = () => {
     showNotification('Maintenance request submitted!');
     setMaintenanceModalOpen(false);
     await refetchMaintenance();
+    await refetchDashboard();
     return { success: true };
   };
 
@@ -356,6 +360,8 @@ const Dashboard = () => {
 
     if (result.success) {
       showNotification('Document uploaded successfully!');
+      await refetchDocuments();
+      await refetchDashboard();
     } else {
       const message = result.error?.message || result.error || 'Upload failed';
       showNotification(`Error: ${message}`);
@@ -368,6 +374,7 @@ const Dashboard = () => {
     if (result.success) {
       showNotification('Property created!');
       await refetchProperties();
+      await refetchDashboard();
     } else {
       showNotification(`Error: ${result.error}`);
     }
@@ -896,6 +903,7 @@ const Dashboard = () => {
                   const pollInterval = setInterval(async () => {
                     await refetchMaintenance();
                     await refetchQuotes();
+                    await refetchDashboard();
                     const updatedRequest = maintenanceRequests.find(r => r.id === request.id);
                     if (updatedRequest?.agent_status === 'completed' || updatedRequest?.agent_status === 'failed') {
                       clearInterval(pollInterval);
@@ -912,6 +920,7 @@ const Dashboard = () => {
                 if (result.success) {
                   showNotification('Contractor selected!');
                   await refetchMaintenance();
+                  await refetchDashboard();
                 } else {
                   showNotification(`Error: ${result.error}`);
                 }
@@ -969,12 +978,14 @@ const Dashboard = () => {
                               showNotification('Status updated.');
                               // Auto-deploy agent when status changes to in_progress
                               if (nextStatus === 'in_progress' && (!request.agent_status || request.agent_status === 'pending')) {
-                                const agentResult = await deployAgent(request.id);
-                                if (agentResult.success) {
-                                  showNotification('Agent deployed! Shopping for contractors...');
-                                }
-                              }
-                              await refetchMaintenance();
+                  const agentResult = await deployAgent(request.id);
+                if (agentResult.success) {
+                  showNotification('Agent deployed! Shopping for contractors...');
+                }
+              }
+              await refetchMaintenance();
+              await refetchDashboard();
+                              await refetchDashboard();
                             } else {
                               showNotification(`Error: ${result.error}`);
                             }
@@ -1606,7 +1617,7 @@ const Dashboard = () => {
                   <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-100 rounded-xl shadow-lg p-4 text-sm text-slate-600">
                     <div className="flex items-center justify-between mb-3">
                       <p className="font-semibold text-slate-800">Alerts</p>
-                      {notifications.length > 0 && (
+                      {finalNotifications.length > 0 && (
                         <button
                           onClick={() => markAllAsRead()}
                           className="text-xs text-emerald-600 hover:text-emerald-700"
@@ -1615,11 +1626,11 @@ const Dashboard = () => {
                         </button>
                       )}
                     </div>
-                    {notifications.length === 0 ? (
+                    {finalNotifications.length === 0 ? (
                       <p>No new alerts yet.</p>
                     ) : (
                       <div className="space-y-3 max-h-72 overflow-auto">
-                        {notifications.map((notif) => (
+                        {finalNotifications.map((notif) => (
                           <button
                             key={notif.id}
                             onClick={() => markNotificationAsRead(notif.id)}
