@@ -5,6 +5,7 @@ from app.models.maintenance import MaintenanceRequest
 from app.models.payment import Payment
 from app.models.document import Document
 from app.models.notification import Notification
+from app.models.invitation import Invitation, InvitationStatus
 
 __all__ = [
     "User",
@@ -15,5 +16,7 @@ __all__ = [
     "Payment",
     "Document",
     "Notification",
+    "Invitation",
+    "InvitationStatus",
 ]
 

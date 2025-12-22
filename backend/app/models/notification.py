@@ -19,7 +19,7 @@ class Notification(Base):
     type = Column(String(50))  # payment, maintenance, lease, message, system
     read = Column(Boolean, default=False, index=True)
     action_url = Column(String(500))
-    metadata = Column(JSON, default=dict)
+    notification_data = Column(JSON, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     
     __table_args__ = (

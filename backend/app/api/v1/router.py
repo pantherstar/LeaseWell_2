@@ -2,7 +2,7 @@
 API v1 Router
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, dashboard, properties, leases, maintenance, payments, documents, notifications
+from app.api.v1.endpoints import auth, dashboard, properties, leases, maintenance, payments, documents, notifications, invitations
 
 api_router = APIRouter()
 
@@ -14,4 +14,5 @@ api_router.include_router(maintenance.router, prefix="/maintenance", tags=["main
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(invitations.router, prefix="/tenants", tags=["invitations"])
 

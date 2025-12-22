@@ -100,3 +100,108 @@ async def get_me(
     """Get current user profile"""
     return ProfileSchema.model_validate(current_user)
 
+
+@router.post("/forgot-password")
+async def forgot_password(
+    email_data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """Request password reset - sends email if configured"""
+    from app.core.email import send_password_reset_email
+
+    email = email_data.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is required"
+        )
+
+    # Check if user exists
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    # Get profile for user's name
+    profile = None
+    if user:
+        result = await db.execute(select(Profile).where(Profile.id == user.id))
+        profile = result.scalar_one_or_none()
+
+    if not user:
+        # Don't reveal if email exists for security
+        return {"message": "If that email is registered, you will receive reset instructions.", "email_sent": True}
+
+    # Create a password reset token
+    reset_token = create_access_token(
+        data={"sub": str(user.id), "type": "reset"},
+        expires_delta=timedelta(hours=1)
+    )
+
+    # Try to send email
+    email_sent = await send_password_reset_email(
+        to_email=email,
+        reset_token=reset_token,
+        user_name=profile.full_name if profile else None
+    )
+
+    if email_sent:
+        return {
+            "message": "Password reset instructions have been sent to your email.",
+            "email_sent": True
+        }
+    else:
+        # Fallback: return token directly (for demo/development)
+        return {
+            "message": "Email service not configured. Use the link below to reset your password.",
+            "reset_token": reset_token,
+            "email_sent": False
+        }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    reset_data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """Reset password using token"""
+    from jose import JWTError, jwt
+
+    token = reset_data.get("token")
+    new_password = reset_data.get("new_password")
+
+    if not token or not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token and new_password are required"
+        )
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        token_type = payload.get("type")
+
+        if token_type != "reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid reset token"
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+    # Update password
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+
+    return {"message": "Password has been reset successfully"}
+
