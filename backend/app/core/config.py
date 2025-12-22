@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     REDIS_TTL: int = 300  # 5 minutes default
 
     # CORS - stored as string, parsed to list
-    CORS_ORIGINS_STR: str = "http://localhost:8080,http://localhost:3000,http://localhost:5173,https://leasewell2-production.up.railway.app"
+    CORS_ORIGINS_STR: str = "http://localhost:8080,http://localhost:3000,http://localhost:5173,https://leasewell2-production.up.railway.app,https://*.vercel.app"
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
