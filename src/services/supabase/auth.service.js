@@ -159,9 +159,22 @@ export const authService = {
 
   // Update password
   async updatePassword(newPassword) {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase is not configured. Please set up your environment variables.');
+    }
+
+    let error;
+    try {
+      const result = await withTimeout(
+        supabase.auth.updateUser({
+          password: newPassword
+        }),
+        10000
+      );
+      error = result.error;
+    } catch (timeoutError) {
+      throw new Error('Password update timed out. Please try again.');
+    }
 
     if (error) throw error;
   },
