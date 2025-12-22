@@ -71,12 +71,12 @@ const Dashboard = () => {
     refetch: refetchDashboard
   } = useDashboardData();
 
-  // Use individual hooks only for mutations and specialized features
-  const { create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases();
-  const { create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance, deployAgent } = useMaintenance();
-  const { upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments();
-  const { update: updatePayment, refetch: refetchPayments } = usePayments();
-  const { create: createProperty, refetch: refetchProperties } = useProperties();
+  // Use individual hooks only for mutations and specialized features (skip initial fetch to avoid duplicates)
+  const { create: createLease, update: updateLease, delete: deleteLease, refetch: refetchLeases } = useLeases({}, true);
+  const { create: createMaintenance, update: updateMaintenance, refetch: refetchMaintenance, deployAgent } = useMaintenance({}, true);
+  const { upload: uploadDocument, download: downloadDocument, refetch: refetchDocuments } = useDocuments({}, true);
+  const { update: updatePayment, refetch: refetchPayments } = usePayments({}, true);
+  const { create: createProperty, refetch: refetchProperties } = useProperties(true);
   const { refetch: refetchProfile } = useProfile();
   const { refetch: refetchTenantLinks } = useTenantLinks();
   const {
@@ -84,13 +84,21 @@ const Dashboard = () => {
     unreadCount,
     markAsRead: markNotificationAsRead,
     markAllAsRead
-  } = useNotifications();
+  } = useNotifications({}, true); // Skip initial fetch, use unified hook data, but keep real-time subscriptions
   const paymentStats = usePaymentStats(payments);
   const [skipLoading, setSkipLoading] = useState(false);
   const [ignoreLoading, setIgnoreLoading] = useState(false);
 
-  // Use notifications from notifications hook (has real-time updates)
+  // Use notifications from notifications hook if available (has real-time updates), otherwise use dashboard data
   const finalNotifications = notifications.length > 0 ? notifications : dashboardNotifications;
+  
+  // Sync notifications from unified hook to notifications hook for real-time updates
+  useEffect(() => {
+    if (dashboardNotifications.length > 0 && notifications.length === 0) {
+      // The notifications hook will update via real-time subscriptions, but we can sync initial data
+      // This is handled by the subscription, so we don't need to manually sync
+    }
+  }, [dashboardNotifications, notifications]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

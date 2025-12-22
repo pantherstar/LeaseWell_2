@@ -11,11 +11,12 @@ import { mockDocuments } from '../utils/mockData';
 /**
  * Hook for managing documents
  * @param {Object} filters - Optional filters { propertyId, leaseId, documentType }
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { documents, loading, error, refetch, upload, download, delete }
  */
-export const useDocuments = (filters = {}) => {
+export const useDocuments = (filters = {}, skipInitialFetch = false) => {
   const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -46,8 +47,10 @@ export const useDocuments = (filters = {}) => {
   }, [filtersKey]);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    if (!skipInitialFetch) {
+      fetchDocuments();
+    }
+  }, [fetchDocuments, skipInitialFetch]);
 
   const upload = async (file, metadata) => {
     if (!isSupabaseConfigured()) {

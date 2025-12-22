@@ -11,11 +11,12 @@ import { mockPayments } from '../utils/mockData';
 /**
  * Hook for managing payments
  * @param {Object} filters - Optional filters { status, leaseId }
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { payments, loading, error, refetch, create, update }
  */
-export const usePayments = (filters = {}) => {
+export const usePayments = (filters = {}, skipInitialFetch = false) => {
   const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
 
   // Stringify filters to avoid object reference issues in dependencies
@@ -45,8 +46,10 @@ export const usePayments = (filters = {}) => {
   }, [filtersKey]);
 
   useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+    if (!skipInitialFetch) {
+      fetchPayments();
+    }
+  }, [fetchPayments, skipInitialFetch]);
 
   const create = async (paymentData) => {
     if (!isSupabaseConfigured()) {

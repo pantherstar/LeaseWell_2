@@ -10,11 +10,12 @@ import { isSupabaseConfigured } from '../services/supabase/client';
 
 /**
  * Hook for managing properties
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { properties, loading, error, refetch, create, update, delete }
  */
-export const useProperties = () => {
+export const useProperties = (skipInitialFetch = false) => {
   const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
 
   const fetchProperties = useCallback(async () => {
@@ -41,8 +42,10 @@ export const useProperties = () => {
   }, []);
 
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+    if (!skipInitialFetch) {
+      fetchProperties();
+    }
+  }, [fetchProperties, skipInitialFetch]);
 
   const create = async (propertyData) => {
     if (!isSupabaseConfigured()) {

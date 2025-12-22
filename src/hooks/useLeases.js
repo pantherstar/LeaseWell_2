@@ -12,11 +12,12 @@ import { createLeaseByEmail, deleteLeaseById } from '../services/supabase/leases
 /**
  * Hook for managing leases
  * @param {Object} filters - Optional filters { status, propertyId }
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { leases, loading, error, refetch, create, update, delete }
  */
-export const useLeases = (filters = {}) => {
+export const useLeases = (filters = {}, skipInitialFetch = false) => {
   const [leases, setLeases] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
 
   // Stringify filters to avoid object reference issues in dependencies
@@ -46,8 +47,10 @@ export const useLeases = (filters = {}) => {
   }, [filtersKey]);
 
   useEffect(() => {
-    fetchLeases();
-  }, [fetchLeases]);
+    if (!skipInitialFetch) {
+      fetchLeases();
+    }
+  }, [fetchLeases, skipInitialFetch]);
 
   const create = async (leaseData) => {
     if (!isSupabaseConfigured()) {

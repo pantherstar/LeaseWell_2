@@ -11,11 +11,12 @@ import { isSupabaseConfigured } from '../services/supabase/client';
 /**
  * Hook for managing notifications
  * @param {Object} filters - Optional filters { unreadOnly, type }
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { notifications, unreadCount, loading, error, refetch, markAsRead, markAllAsRead, delete }
  */
-export const useNotifications = (filters = {}) => {
+export const useNotifications = (filters = {}, skipInitialFetch = false) => {
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -42,9 +43,11 @@ export const useNotifications = (filters = {}) => {
   }, [filters]);
 
   useEffect(() => {
-    fetchNotifications();
+    if (!skipInitialFetch) {
+      fetchNotifications();
+    }
 
-    // Set up real-time subscription if Supabase is configured
+    // Set up real-time subscription if Supabase is configured (always subscribe for updates)
     if (isSupabaseConfigured()) {
       const subscription = subscribeToNotifications(() => {
         // Refetch when new notifications arrive
@@ -55,7 +58,7 @@ export const useNotifications = (filters = {}) => {
         subscription.unsubscribe();
       };
     }
-  }, [fetchNotifications]);
+  }, [fetchNotifications, skipInitialFetch]);
 
   const markAsRead = async (notificationId) => {
     if (!isSupabaseConfigured()) {

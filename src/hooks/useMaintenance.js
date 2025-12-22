@@ -16,11 +16,12 @@ import { mockMaintenanceRequests } from '../utils/mockData';
 /**
  * Hook for managing maintenance requests
  * @param {Object} filters - Optional filters { status, priority, propertyId }
+ * @param {boolean} skipInitialFetch - If true, skip fetching on mount (for use with unified hooks)
  * @returns {Object} { requests, loading, error, refetch, create, update, delete }
  */
-export const useMaintenance = (filters = {}) => {
+export const useMaintenance = (filters = {}, skipInitialFetch = false) => {
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipInitialFetch);
   const [error, setError] = useState(null);
 
   // Stringify filters to avoid object reference issues in dependencies
@@ -50,9 +51,11 @@ export const useMaintenance = (filters = {}) => {
   }, [filtersKey]);
 
   useEffect(() => {
-    fetchRequests();
+    if (!skipInitialFetch) {
+      fetchRequests();
+    }
 
-    // Set up real-time subscription if Supabase is configured
+    // Set up real-time subscription if Supabase is configured (always subscribe for updates)
     if (isSupabaseConfigured()) {
       const subscription = subscribeToMaintenanceRequests(() => {
         // Refetch when changes occur
@@ -63,7 +66,7 @@ export const useMaintenance = (filters = {}) => {
         subscription.unsubscribe();
       };
     }
-  }, [fetchRequests]);
+  }, [fetchRequests, skipInitialFetch]);
 
   const create = async (requestData) => {
     if (!isSupabaseConfigured()) {
