@@ -27,3 +27,8 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+backend/.env
+backend/.env.bak
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/**/__pycache__/
