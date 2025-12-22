@@ -1,5 +1,9 @@
--- Create invitations table
-CREATE TABLE IF NOT EXISTS invitations (
+-- Drop existing table and enum
+DROP TABLE IF EXISTS invitations;
+DROP TYPE IF EXISTS invitation_status;
+
+-- Create invitations table with VARCHAR status
+CREATE TABLE invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
     property_id UUID NOT NULL REFERENCES properties(id),
@@ -14,8 +18,5 @@ CREATE TABLE IF NOT EXISTS invitations (
     accepted_at TIMESTAMP
 );
 
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email);
-CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
-CREATE INDEX IF NOT EXISTS idx_invitations_property_id ON invitations(property_id);
-CREATE INDEX IF NOT EXISTS idx_invitations_landlord_id ON invitations(landlord_id);
+CREATE INDEX idx_invitations_email ON invitations(email);
+CREATE INDEX idx_invitations_token ON invitations(token);

@@ -1,7 +1,7 @@
 """
 Tenant invitation model
 """
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timedelta
 import uuid
@@ -26,7 +26,7 @@ class Invitation(Base):
     property_id = Column(UUID(as_uuid=True), ForeignKey("properties.id"), nullable=False)
     landlord_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
     token = Column(String(500), unique=True, nullable=False, index=True)
-    status = Column(SQLEnum(InvitationStatus), default=InvitationStatus.PENDING)
+    status = Column(String(20), default="pending")
 
     # Lease details (optional, to be used when creating lease after acceptance)
     monthly_rent = Column(String(50))  # Store as string to avoid decimal issues

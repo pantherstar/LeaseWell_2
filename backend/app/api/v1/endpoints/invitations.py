@@ -13,7 +13,7 @@ from app.core.auth import get_current_active_user, create_access_token, get_pass
 from app.core.email import send_tenant_invitation_email
 from app.models.user import User, Profile
 from app.models.property import Property
-from app.models.invitation import Invitation, InvitationStatus
+from app.models.invitation import Invitation
 from pydantic import BaseModel, EmailStr
 
 router = APIRouter()
@@ -77,7 +77,7 @@ async def invite_tenant(
         select(Invitation).where(
             Invitation.email == invitation_data.email,
             Invitation.property_id == invitation_data.property_id,
-            Invitation.status == InvitationStatus.PENDING
+            Invitation.status == "pending"
         )
     )
     existing = result.scalar_one_or_none()
@@ -141,7 +141,7 @@ async def list_invitations(
             id=str(inv.id),
             email=inv.email,
             property_id=str(inv.property_id),
-            status=inv.status.value,
+            status=inv.status,
             created_at=inv.created_at,
             expires_at=inv.expires_at
         )
@@ -169,13 +169,13 @@ async def cancel_invitation(
             detail="Invitation not found"
         )
 
-    if invitation.status != InvitationStatus.PENDING:
+    if invitation.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only cancel pending invitations"
         )
 
-    invitation.status = InvitationStatus.CANCELLED
+    invitation.status = "cancelled"
     await db.commit()
 
     return {"message": "Invitation cancelled"}
@@ -198,14 +198,14 @@ async def get_invitation_details(
             detail="Invitation not found"
         )
 
-    if invitation.status != InvitationStatus.PENDING:
+    if invitation.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invitation is {invitation.status.value}"
+            detail=f"Invitation is {invitation.status}"
         )
 
     if invitation.expires_at < datetime.utcnow():
-        invitation.status = InvitationStatus.EXPIRED
+        invitation.status = "expired"
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -252,14 +252,14 @@ async def accept_invitation(
             detail="Invitation not found"
         )
 
-    if invitation.status != InvitationStatus.PENDING:
+    if invitation.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invitation is {invitation.status.value}"
+            detail=f"Invitation is {invitation.status}"
         )
 
     if invitation.expires_at < datetime.utcnow():
-        invitation.status = InvitationStatus.EXPIRED
+        invitation.status = "expired"
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -295,7 +295,7 @@ async def accept_invitation(
     db.add(new_profile)
 
     # Update invitation status
-    invitation.status = InvitationStatus.ACCEPTED
+    invitation.status = "accepted"
     invitation.accepted_at = datetime.utcnow()
 
     await db.commit()
