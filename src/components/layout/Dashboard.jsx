@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Building2, FileText, Wrench, CreditCard, LogOut, Calendar, DollarSign,
   CheckCircle, Clock, User, Home, Plus, Eye, Download, X, Menu, Bell,
-  Search, MoreVertical, Edit, Trash2, MessageSquare, Upload
+  Search, MoreVertical, Edit, Trash2, MessageSquare, Upload, Settings, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import PaymentModal from '../payments/PaymentModal';
@@ -47,6 +47,7 @@ const Dashboard = () => {
   const [leaseRequestModalOpen, setLeaseRequestModalOpen] = useState(false);
   const [offlinePaymentModalOpen, setOfflinePaymentModalOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const faviconUrl = '/favicon.png?v=2';
 
@@ -1127,7 +1128,10 @@ const Dashboard = () => {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <button
-                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  onClick={() => {
+                    setNotificationsOpen((prev) => !prev);
+                    setProfileMenuOpen(false);
+                  }}
                   className="p-2 hover:bg-slate-100 rounded-lg relative"
                 >
                   <Bell className="w-5 h-5 text-slate-600" />
@@ -1169,9 +1173,67 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">{userType === 'landlord' ? 'L' : 'T'}</div>
-                <div><p className="font-medium text-slate-800 text-sm">{userType === 'landlord' ? 'Property Manager' : 'John Smith'}</p><p className="text-xs text-slate-500 capitalize">{userType}</p></div>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setProfileMenuOpen((prev) => !prev);
+                    setNotificationsOpen(false);
+                  }}
+                  className="flex items-center gap-3 pl-4 border-l border-slate-200 hover:bg-slate-50 rounded-lg py-2 pr-2 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : (userType === 'landlord' ? 'L' : 'T')}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-slate-800 text-sm">
+                      {profile?.full_name || (userType === 'landlord' ? 'Property Manager' : 'Tenant')}
+                    </p>
+                    <p className="text-xs text-slate-500 capitalize">{userType}</p>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-100 rounded-xl shadow-lg overflow-hidden z-50">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                      <p className="font-medium text-slate-800">{profile?.full_name || 'User'}</p>
+                      <p className="text-sm text-slate-500">{profile?.email || ''}</p>
+                    </div>
+                    <div className="py-2">
+                      <button
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          showNotification('Profile settings coming soon!');
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <User className="w-4 h-4 text-slate-400" />
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          showNotification('Settings coming soon!');
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Settings className="w-4 h-4 text-slate-400" />
+                        Settings
+                      </button>
+                    </div>
+                    <div className="border-t border-slate-100 py-2">
+                      <button
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
