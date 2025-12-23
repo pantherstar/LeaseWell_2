@@ -57,9 +57,9 @@ class Settings(BaseSettings):
 
     @property
     def frontend_base_url(self) -> str:
-        """Get frontend URL - Railway/Vercel URL in production, FRONTEND_URL locally"""
-        if self.RAILWAY_PUBLIC_DOMAIN:
-            return f"https://{self.RAILWAY_PUBLIC_DOMAIN}"
+        """Get frontend URL - prioritize FRONTEND_URL if set"""
+        if self.FRONTEND_URL and self.FRONTEND_URL != "http://localhost:3000":
+            return self.FRONTEND_URL
         if self.VERCEL_URL:
             return f"https://{self.VERCEL_URL}"
         return self.FRONTEND_URL
