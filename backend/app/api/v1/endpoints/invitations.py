@@ -14,6 +14,7 @@ from app.core.email import send_tenant_invitation_email
 from app.models.user import User, Profile
 from app.models.property import Property
 from app.models.invitation import Invitation
+from app.models.lease import Lease
 from pydantic import BaseModel, EmailStr
 
 router = APIRouter()
@@ -293,6 +294,20 @@ async def accept_invitation(
         role="tenant"
     )
     db.add(new_profile)
+
+    # Create lease from invitation data
+    from datetime import date
+    new_lease = Lease(
+        property_id=invitation.property_id,
+        tenant_id=new_user.id,
+        landlord_id=invitation.landlord_id,
+        start_date=invitation.start_date.date() if invitation.start_date else date.today(),
+        end_date=invitation.end_date.date() if invitation.end_date else date.today().replace(year=date.today().year + 1),
+        monthly_rent=float(invitation.monthly_rent) if invitation.monthly_rent else 0,
+        security_deposit=0,
+        status="active"
+    )
+    db.add(new_lease)
 
     # Update invitation status
     invitation.status = "accepted"
